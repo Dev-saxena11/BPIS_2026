@@ -1,26 +1,26 @@
-#Census India
+# Census India
 
 Population
 Literacy rate
 District statistics
 
-#data.gov.in
+# data.gov.in
 
 Health infrastructure
 School infrastructure
 Water coverage
 
-#NITI Aayog
+# NITI Aayog
 
 Poverty indicators
 
-#District map data
+# District map data
 
 https://github.com/datameet/maps
 
 Download district shapefile.
 
-system should analyse :
+# system should analyse :
 population
 literacy_rate
 poverty_index
@@ -29,7 +29,7 @@ school_count
 water_access
 road_connectivity
 
-from these we will compute :
+# from these we will compute :
 health_gap
 education_gap
 water_gap
