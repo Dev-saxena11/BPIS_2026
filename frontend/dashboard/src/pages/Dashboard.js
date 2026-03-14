@@ -1,7 +1,7 @@
 import MapView from "../components/MapView";
 import DistrictTable from "../components/DistrictTable";
 import Charts from "../components/Charts";
-
+import PriorityTable from "../components/PriorityTable";
 function Dashboard() {
   return (
     <div style={{padding:"20px"}}>
@@ -17,6 +17,8 @@ function Dashboard() {
       <br/>
 
       <DistrictTable/>
+      <br/>
+      <PriorityTable/>
 
     </div>
   );
