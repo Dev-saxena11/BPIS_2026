@@ -29,12 +29,12 @@ def detect_issues(district_data):
     population = district_data["population"]
 
     # Rule 1
-    if literacy < 60:
-        issues.append("low_literacy")
+    if literacy < 55:
+        issues.append("critical_literacy")
 
     # Rule 2
-    if literacy < 50:
-        issues.append("very_low_literacy")
+    elif literacy < 70:
+        issues.append("low_literacy")
 
     # Rule 3
     if population > 1000000:
@@ -54,6 +54,6 @@ def recommend_schemes(district_data):
 
     return {
         "district": district_data["district"],
-        "issues": issues,
+        "issues": {f"{i.replace('_', ' ').title()}" for i in issues},
         "recommended_schemes": list(set(schemes))
     }

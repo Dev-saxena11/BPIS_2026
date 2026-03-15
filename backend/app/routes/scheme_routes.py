@@ -11,7 +11,7 @@ def scheme_recommendation(district_name: str):
 
     # Find district
     district_row = df[df["district"].str.lower() == district_name.lower()]
-
+    
     if district_row.empty:
         return {"error": "District not found"}
 

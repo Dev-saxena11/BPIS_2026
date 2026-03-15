@@ -20,9 +20,11 @@ function DistrictSearch({ districts, onSelect }) {
   return (
   <div
     style={{
-      position: "absolute",
+      position: "relative",
+      display: "inline-block",
       top: "10px",
-      left: "50px",
+      margin: "5px",
+      left: "0px",
       zIndex: 1000,
       background: "white",
       padding: "6px",
