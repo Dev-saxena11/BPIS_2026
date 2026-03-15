@@ -1,3 +1,4 @@
+from app.routes.scheme_routes import router as scheme_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.district_routes import router as district_router
@@ -21,3 +22,4 @@ def root():
 app.include_router(district_router)
 app.include_router(analytics_router)
 app.include_router(scoring_router)
+app.include_router(scheme_router)

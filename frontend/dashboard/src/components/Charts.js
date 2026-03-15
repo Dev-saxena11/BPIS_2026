@@ -1,10 +1,19 @@
-function Charts() {
-  return (
+import TopDistricts from "./TopDistricts";
+
+function Charts(){
+
+  return(
+
     <div>
-      <h3>Analytics Charts</h3>
-      <p>Charts will appear here.</p>
+
+      <h3>Analytics Dashboard</h3>
+
+      <TopDistricts/>
+
     </div>
+
   );
+
 }
 
 export default Charts;
