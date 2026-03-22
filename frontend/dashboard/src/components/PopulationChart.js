@@ -8,7 +8,7 @@ function PopulationChart() {
 
   useEffect(() => {
 
-    axios.get("http://127.0.0.1:8000/districts")
+    axios.get("http://localhost:8000/districts")
       .then(res => {
 
         const topPopulation = res.data

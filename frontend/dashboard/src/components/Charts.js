@@ -26,7 +26,7 @@ function Charts() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    axios.get("http://127.0.0.1:8000/priority-ranking")
+    axios.get("http://localhost:8000/priority-ranking")
       .then(res => {
 
         // take top 10 districts

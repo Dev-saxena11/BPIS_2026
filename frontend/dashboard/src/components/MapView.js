@@ -50,7 +50,7 @@ function MapView() {
 
   /* Load priority data */
   useEffect(() => {
-    axios.get("http://127.0.0.1:8000/priority-ranking").then((res) => {
+    axios.get("http://localhost:8000/priority-ranking").then((res) => {
       setPriorityData(res.data);
       setDistrictList(res.data);
     });
@@ -109,7 +109,7 @@ function MapView() {
     layer.on("click", async () => {
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/scheme-recommendation/${encodeURIComponent(match.district)}`,
+          `http://localhost:8000/scheme-recommendation/${encodeURIComponent(match.district)}`,
         );
 
         const schemeData = await response.json();

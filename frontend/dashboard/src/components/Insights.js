@@ -11,7 +11,7 @@ function Insights() {
 
   useEffect(() => {
 
-    axios.get("http://127.0.0.1:8000/districts")
+    axios.get("http://localhost:8000/districts")
       .then(res => {
 
         const districts = res.data;
@@ -31,7 +31,7 @@ function Insights() {
 
       });
 
-    axios.get("http://127.0.0.1:8000/priority-ranking")
+    axios.get("http://localhost:8000/priority-ranking")
       .then(res => {
 
         const highestRisk =

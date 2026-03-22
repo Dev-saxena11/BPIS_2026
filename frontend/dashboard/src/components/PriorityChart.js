@@ -1,46 +1,85 @@
-import { Bar } from "react-chartjs-2";
-import { useEffect, useState } from "react";
+// import { Bar } from "react-chartjs-2";
+// import { useEffect, useState } from "react";
 
-function PriorityChart(){
+// function PriorityChart(){
 
-  const [data,setData] = useState([]);
+//   const [data,setData] = useState([]);
 
-  useEffect(()=>{
+//   useEffect(()=>{
 
-    fetch("http://127.0.0.1:8000/priority-ranking")
-      .then(res => res.json())
-      .then(result => {
+//     fetch("http://localhost:8000/priority-ranking")
+//       .then(res => res.json())
+//       .then(result => {
 
+//         const top = result
+//           .sort((a,b)=> b.priority_score - a.priority_score)
+//           .slice(0,5);
+
+//         setData(top);
+
+//       });
+
+//   },[]);
+
+//   const chartData = {
+
+//     labels: data.map(d => d.district),
+
+//     datasets:[
+//       {
+//         label:"Priority Score",
+//         data: data.map(d => d.priority_score),
+//         backgroundColor:"red"
+//       }
+//     ]
+//   };
+
+//   return(
+//     <div>
+//       <h4>Highest Priority Districts</h4>
+//       <Bar
+//       id="priorityChart"
+//       data={chartData}
+//       />
+//     </div>
+//   );
+// }
+
+// export default PriorityChart;
+import React, { useEffect, useState } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+
+function PriorityChart() {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    // Using fetch to match your existing pattern, but swapping to Recharts
+    fetch("http://localhost:8000/priority-ranking")
+      .then((res) => res.json())
+      .then((result) => {
         const top = result
-          .sort((a,b)=> b.priority_score - a.priority_score)
-          .slice(0,5);
-
+          .sort((a, b) => b.priority_score - a.priority_score)
+          .slice(0, 5);
         setData(top);
-
       });
+  }, []);
 
-  },[]);
-
-  const chartData = {
-
-    labels: data.map(d => d.district),
-
-    datasets:[
-      {
-        label:"Priority Score",
-        data: data.map(d => d.priority_score),
-        backgroundColor:"red"
-      }
-    ]
-  };
-
-  return(
-    <div>
-      <h4>Highest Priority Districts</h4>
-      <Bar
-      id="priorityChart"
-      data={chartData}
-      />
+  return (
+    <div style={{ width: "100%", height: 300, background: "#fff", padding: "10px", borderRadius: "8px" }}>
+      <h4 style={{ textAlign: "center", color: "#1e293b" }}>Highest Priority Districts</h4>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <XAxis dataKey="district" tick={{ fontSize: 12 }} interval={0} />
+          <YAxis />
+          <Tooltip cursor={{ fill: '#f1f5f9' }} />
+          {/* Using a color scale: higher priority = darker red */}
+          <Bar dataKey="priority_score" radius={[4, 4, 0, 0]}>
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.priority_score > 80 ? "#ef4444" : "#f87171"} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

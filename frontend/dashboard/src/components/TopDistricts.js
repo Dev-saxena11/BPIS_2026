@@ -6,7 +6,7 @@ function TopDistricts() {
 
   useEffect(() => {
 
-    fetch("http://127.0.0.1:8000/priority-ranking")
+    fetch("http://localhost:8000/priority-ranking")
       .then(res => res.json())
       .then(data => {
 
