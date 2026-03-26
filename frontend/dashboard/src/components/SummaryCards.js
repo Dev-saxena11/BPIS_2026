@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useLanguage } from '../contexts/LanguageContext';
 import axios from "axios";
 
 function SummaryCards() {
+  const { t } = useLanguage();
 
   const [stats, setStats] = useState({
     lowLiteracy: 0,
@@ -56,17 +58,17 @@ function SummaryCards() {
     }}>
 
       <div style={cardStyle}>
-        <h4>Low Literacy Districts</h4>
+        <h4>{t('lowLiteracyDistricts')}</h4>
         <p style={numberStyle}>{stats.lowLiteracy}</p>
       </div>
 
       <div style={cardStyle}>
-        <h4>Highest Risk District</h4>
-        <p style={numberStyle}>{stats.highestRisk}</p>
+        <h4>{t('highestRiskDistrict')}</h4>
+        <p style={{...numberStyle, textTransform: 'capitalize'}}>{(t('districtNameMap') && stats.highestRisk && t('districtNameMap')[stats.highestRisk.toLowerCase()]) || stats.highestRisk}</p>
       </div>
 
       <div style={cardStyle}>
-        <h4>Average Literacy</h4>
+        <h4>{t('averageLiteracy')}</h4>
         <p style={numberStyle}>{stats.avgLiteracy}%</p>
       </div>
 

@@ -1,5 +1,6 @@
 import L from "leaflet";
 import DistrictSearch from "./DistrictSearch";
+import { useLanguage } from '../contexts/LanguageContext';
 import Legend from "./Legend";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import { useEffect, useState } from "react";
@@ -32,6 +33,7 @@ function MapController({ selectedDistrict, geoData }) {
 }
 
 function MapView() {
+  const { t } = useLanguage();
   const [geoData, setGeoData] = useState(null);
   const [priorityData, setPriorityData] = useState([]);
   const [districtList, setDistrictList] = useState([]);
@@ -81,9 +83,12 @@ function MapView() {
 
     let color = "#2ecc71";
 
-    if (score > 80) color = "#e74c3c";
-    else if (score > 60) color = "orange";
-
+    if (score > 60){
+      color = "#e74c3c";
+    }
+    else if (score > 35 && score <= 60){
+      color = "orange";
+    }
     return {
       fillColor: color,
       weight: 1,
@@ -155,6 +160,7 @@ function MapView() {
       <DistrictSearch
         districts={districtList}
         onSelect={(name) => setSelectedDistrict(name)}
+        placeholder={t('searchDistrict')}
       />
 
       <div style={{ marginBottom: "10px", marginTop: "10px" }}>
@@ -169,7 +175,7 @@ function MapView() {
             cursor: "pointer",
           }}
         >
-          {showHighPriority ? "Show All Districts" : "Show Critical Districts"}
+          {showHighPriority ? t('showAllDistricts') : t('showCriticalDistricts')}
         </button>
       </div>
 
@@ -180,7 +186,8 @@ function MapView() {
       >
         <MapController selectedDistrict={selectedDistrict} geoData={geoData} />
 
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* Using CartoDB Voyager to explicitly enforce English labels */}
+        <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
 
         {geoData && (
           <GeoJSON

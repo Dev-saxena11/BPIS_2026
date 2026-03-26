@@ -1,4 +1,6 @@
+import { useLanguage } from '../contexts/LanguageContext';
 function Legend(){
+  const { t } = useLanguage();
 
   return(
 
@@ -16,18 +18,18 @@ function Legend(){
       }}
     >
 
-      <b>Priority Legend</b>
+      <b>{t('priorityLegend')}</b>
 
       <div>
-        <span style={{color:"green"}}>■</span> Low Priority
+        <span style={{color:"green"}}>■</span> {t('lowPriority')}
       </div>
 
       <div>
-        <span style={{color:"orange"}}>■</span> Medium Priority
+        <span style={{color:"orange"}}>■</span> {t('mediumPriority')}
       </div>
 
       <div>
-        <span style={{color:"red"}}>■</span> High Priority
+        <span style={{color:"red"}}>■</span> {t('highPriority')}
       </div>
 
     </div>

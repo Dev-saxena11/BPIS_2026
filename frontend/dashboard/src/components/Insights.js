@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useLanguage } from '../contexts/LanguageContext';
 import axios from "axios";
 
 function Insights() {
+  const { t } = useLanguage();
 
   const [stats, setStats] = useState({
     lowLiteracy: 0,
@@ -55,15 +57,15 @@ function Insights() {
       <ul>
 
         <li>
-          {stats.lowLiteracy} districts have literacy rate below 70%
+          {stats.lowLiteracy} {t('districtsBelow70')}
         </li>
 
         <li>
-          Highest risk district: <b>{stats.highRisk}</b>
+          {t('highestRiskDistLabel')} <b style={{textTransform: 'capitalize'}}>{(t('districtNameMap') && t('districtNameMap')[stats.highRisk?.toLowerCase()]) || stats.highRisk}</b>
         </li>
 
         <li>
-          Average literacy rate: {stats.avgLiteracy}%
+          {t('avgLiteracyRateLabel')} {stats.avgLiteracy}%
         </li>
 
       </ul>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function DistrictSearch({ districts, onSelect }) {
+function DistrictSearch({ districts, onSelect, placeholder }) {
 
   const [query, setQuery] = useState("");
 
@@ -34,7 +34,7 @@ function DistrictSearch({ districts, onSelect }) {
   >
     <input
       type="text"
-      placeholder="Search District..."
+      placeholder={placeholder || "Search District..."}
       value={query}
       onChange={handleSearch}
       style={{

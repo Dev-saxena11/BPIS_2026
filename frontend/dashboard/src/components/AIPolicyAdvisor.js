@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLanguage } from '../contexts/LanguageContext';
 import axios from "axios";
 import { API_BASE } from "../config";
 import {
@@ -11,6 +12,7 @@ import {
   CartesianGrid,
 } from "recharts";
 const AIPolicyAdvisor = () => {
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -66,18 +68,18 @@ const AIPolicyAdvisor = () => {
   console.log("simulation:", simulation);
   return (
     <div style={{ padding: "20px" }}>
-      <h2>AI Policy Advisor</h2>
+      <h2>{t('aiPolicySimulation')}</h2>
       {/* 🔍 Query Input */}
       <input
         type="text"
-        placeholder="Ask policy question..."
+        placeholder={t('askPolicyQuestion')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         style={{ width: "60%", padding: "10px", marginRight: "10px" }}
       />
-      <button onClick={handleAsk}>Ask</button>
+      <button onClick={handleAsk}>{t('ask')}</button>
       <div style={{ marginTop: "10px" }}>
-        <label>Increase Funding (%): </label>
+        <label>{t('increaseFunding')} </label>
         <input
           type="number"
           value={increase}
@@ -90,21 +92,21 @@ const AIPolicyAdvisor = () => {
         disabled={!result}
         style={{ marginLeft: "10px" }}
       >
-        Run Simulation
+        {t('runSimulationBtn')}
       </button>
       {chartData.length > 0 && (
         <div style={{ marginTop: "30px" }}>
-          <h3>Before vs After Policy Impact</h3>
+          <h3>{t('beforeVsAfter')}</h3>
 
           <BarChart width={600} height={300} data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="district" />
+            <XAxis dataKey="district" tickFormatter={(val) => { const nameMap = t('districtNameMap'); const mapped = (nameMap && nameMap[val.toLowerCase()]) ? nameMap[val.toLowerCase()] : val; return mapped.charAt(0).toUpperCase() + mapped.slice(1); }} />
             <YAxis />
             <Tooltip />
             <Legend />
 
-            <Bar dataKey="before" name="Before" fill="#8884d8" />
-            <Bar dataKey="after" name="After" fill="#82ca9d" />
+            <Bar dataKey="before" name={t('before')} fill="#8884d8" />
+            <Bar dataKey="after" name={t('after')} fill="#82ca9d" />
           </BarChart>
         </div>
       )}
@@ -114,16 +116,16 @@ const AIPolicyAdvisor = () => {
       {result && (
         <div style={{ marginTop: "20px" }}>
           {/* 🟦 Districts */}
-          <h3>Recommended Districts</h3>
+          <h3>{t('recommendedDistricts')}</h3>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <h4>Before Simulation (Current High Priority)</h4>
+            <h4>{t('beforeSimulation')}</h4>
             {result.recommended_districts.map((d, i) => (
               <div
                 key={i}
                 style={{
                   padding: "10px",
                   background: i === 0 ? "#ffcccc" : "#e0e0e0",
-                  borderRadius: "5px",
+                  borderRadius: "5px", textTransform: "capitalize",
                 }}
               >
                 {d}
@@ -132,18 +134,18 @@ const AIPolicyAdvisor = () => {
           </div>
 
           {/* 🧠 Reason */}
-          <h3>Reason</h3>
-          <p>{result.reason}</p>
+          <h3>{t('reason')}</h3>
+          <p>{t(result.reason)}</p>
 
           {/* 📋 Supporting Data */}
-          <h3>Supporting Data</h3>
+          <h3>{t('supportingData')}</h3>
           <table border="1" cellPadding="5">
             <thead>
               <tr>
-                <th>District</th>
-                <th>Literacy</th>
-                <th>Population</th>
-                <th>Priority Score</th>
+                <th>{t('district')}</th>
+                <th>{t('literacy')}</th>
+                <th>{t('population')}</th>
+                <th>{t('priorityScore')}</th>
               </tr>
             </thead>
             <tbody>
@@ -159,9 +161,9 @@ const AIPolicyAdvisor = () => {
           </table>
 
           {/* ⚡ Action */}
-          <h3>Recommended Action</h3>
-          <p>{result.action}</p>
-          <h3>Recommended Schemes (District-wise)</h3>
+          <h3>{t('recommendedAction')}</h3>
+          <p>{t(result.action)}</p>
+          <h3>{t('recommendedSchemes')}</h3>
 
           {result.recommended_schemes &&
             result.recommended_schemes.map((d, i) => (
@@ -181,7 +183,7 @@ const AIPolicyAdvisor = () => {
 
                 <ul style={{ marginTop: "5px" }}>
                   {d.schemes.map((s, j) => (
-                    <li key={j}>{s}</li>
+                    <li key={j}>{t(s)}</li>
                   ))}
                 </ul>
               </div>
@@ -191,21 +193,21 @@ const AIPolicyAdvisor = () => {
       {/* Locate your BarChart and update the Bars */}
       {simulation && (
         <div style={{ marginTop: "30px", background: "#fff", padding: "20px" }}>
-          <h3>Impact Analysis: Priority Score Reduction</h3>
+          <h3>{t('impactAnalysis')}</h3>
             <BarChart width={600} height={300} data={simulation.chart_data}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="district" />
+            <XAxis dataKey="district" tickFormatter={(val) => { const nameMap = t('districtNameMap'); const mapped = (nameMap && nameMap[val.toLowerCase()]) ? nameMap[val.toLowerCase()] : val; return mapped.charAt(0).toUpperCase() + mapped.slice(1); }} />
             <YAxis />
             <Tooltip />
             <Legend />
             {/* Visualizing the difference */}
             <Bar
-              name="Current Priority"
+              name={t('currentPriority')}
               dataKey="before_score"
               fill="#94a3b8"
             />
             <Bar
-              name="Post-Intervention"
+              name={t('postIntervention')}
               dataKey="after_score"
               fill="#22c55e"
             />

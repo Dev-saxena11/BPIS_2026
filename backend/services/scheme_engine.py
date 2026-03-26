@@ -29,11 +29,11 @@ def detect_issues(district_data):
     population = district_data["population"]
 
     # Rule 1
-    if literacy < 55:
-        issues.append("critical_literacy")
+    if literacy < 45:
+        issues.append("very_low_literacy")
 
     # Rule 2
-    elif literacy < 70:
+    elif literacy < 65 and literacy >= 45:
         issues.append("low_literacy")
 
     # Rule 3

@@ -6,13 +6,15 @@ from app.routes.analytics_routes import router as analytics_router
 from app.routes.scoring_routes import router as scoring_router
 from app.routes.ai_policy_routes import router as ai_policy_router
 from app.routes import simulation_routes
+from app.routes.chatbot_routes import router as chatbot_router
+from app.routes.auth_routes import router as auth_router
 
 
 app = FastAPI(title="BPIS API")
 #Enable CORS for all origins (for development purposes)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,3 +31,5 @@ app.include_router(scoring_router)
 app.include_router(scheme_router)
 app.include_router(ai_policy_router)
 app.include_router(simulation_routes.router)
+app.include_router(chatbot_router)
+app.include_router(auth_router)
