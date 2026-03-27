@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLanguage } from '../contexts/LanguageContext';
 import axios from "axios";
+import { getLocalizedDistrictName } from "../utils/districtLocalization";
 
 function Insights() {
   const { t } = useLanguage();
@@ -61,7 +62,7 @@ function Insights() {
         </li>
 
         <li>
-          {t('highestRiskDistLabel')} <b style={{textTransform: 'capitalize'}}>{(t('districtNameMap') && t('districtNameMap')[stats.highRisk?.toLowerCase()]) || stats.highRisk}</b>
+          {t('highestRiskDistLabel')} <b>{getLocalizedDistrictName(t, stats.highRisk)}</b>
         </li>
 
         <li>

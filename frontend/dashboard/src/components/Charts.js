@@ -2,6 +2,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { getLocalizedDistrictName } from "../utils/districtLocalization";
+
 
 function Charts() {
   const { t } = useLanguage();
@@ -12,16 +14,14 @@ function Charts() {
       .then(res => {
         const top = res.data
           .sort((a, b) => b.priority_score - a.priority_score)
-          .slice(0, 10);
+          .slice(0, 5);
         setData(top);
       });
   }, []);
 
   // Translate a district name using the map, with capitalization fallback
   const getDistrictLabel = (val) => {
-    const nameMap = t('districtNameMap');
-    const mapped = (nameMap && nameMap[val?.toLowerCase()]) ? nameMap[val.toLowerCase()] : val;
-    return mapped?.charAt(0).toUpperCase() + mapped?.slice(1);
+    return getLocalizedDistrictName(t, val);
   };
 
   // Custom tooltip: translates the key label and formats priority_score to 2 decimals
@@ -45,9 +45,9 @@ function Charts() {
     <div style={{ width: "100%", height: 400 }}>
       <h3>{t('topPriorityDistricts')}</h3>
       <ResponsiveContainer>
-        <BarChart data={data}>
-          <XAxis dataKey="district" tickFormatter={getDistrictLabel} />
-          <YAxis dataKey="priority_score" />
+        <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <XAxis dataKey="district" tick={{ fill: '#000000', fontSize: 12 }} tickFormatter={getDistrictLabel} angle={-45}  textAnchor="end" height={80} fontSize={12} fontWeight={700} />
+          <YAxis dataKey="priority_score" tick={{ fill: '#000000' }} fontSize={12} fontWeight={700}/>
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="priority_score" fill="#e74c3c" />
         </BarChart>

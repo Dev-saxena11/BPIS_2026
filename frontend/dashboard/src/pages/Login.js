@@ -72,7 +72,7 @@ const OTPInput = ({ length = 6, value, onChange }) => {
             fontWeight: 700, color: '#0f172a', transition: 'border-color 0.2s',
             background: '#f8fafc'
           }}
-          onFocus={(e) => { e.target.style.borderColor = '#0f172a'; e.target.style.background = 'white'; e.target.select(); }}
+          // onFocus={(e) => { e.target.style.borderColor = '#0f172a'; e.target.style.background = 'white'; e.target.select(); }}
           onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.background = '#f8fafc'; }}
         />
       ))}
@@ -427,7 +427,7 @@ const Login = ({ onLogin }) => {
                 <form onSubmit={handleSignupSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', color: '#1e293b', fontWeight: 600 }}>Full Name</label>
-                    <input value={signupName} onChange={e=>setSignupName(e.target.value)} required type="text" placeholder="Dr. Rajesh Kumar" style={inputStyle} />
+                    <input value={signupName} onChange={e=>setSignupName(e.target.value)} required type="text" placeholder="Enter your full name" style={inputStyle} />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', color: '#1e293b', fontWeight: 600 }}>Mobile Number</label>

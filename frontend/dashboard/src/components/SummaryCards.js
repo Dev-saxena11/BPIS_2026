@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLanguage } from '../contexts/LanguageContext';
 import axios from "axios";
+import { getLocalizedDistrictName } from "../utils/districtLocalization";
 
 function SummaryCards() {
   const { t } = useLanguage();
@@ -64,7 +65,7 @@ function SummaryCards() {
 
       <div style={cardStyle}>
         <h4>{t('highestRiskDistrict')}</h4>
-        <p style={{...numberStyle, textTransform: 'capitalize'}}>{(t('districtNameMap') && stats.highestRisk && t('districtNameMap')[stats.highestRisk.toLowerCase()]) || stats.highestRisk}</p>
+        <p style={numberStyle}>{getLocalizedDistrictName(t, stats.highestRisk)}</p>
       </div>
 
       <div style={cardStyle}>

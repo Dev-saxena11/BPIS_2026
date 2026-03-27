@@ -6,12 +6,20 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useLanguage } from '../contexts/LanguageContext';
 import { notoSansDevanagariBase64 } from '../assets/fontBase64';
+import { getLocalizedDistrictName as localizeDistrictName } from '../utils/districtLocalization';
 
 const CustomSearchableSelect = ({ data, selectedValue, onChange }) => {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef(null);
+
+  // Localize a raw district key → display name in the active language.
+  // Lookup is always lowercase so it matches JSON keys consistently.
+  // Fallback: capitalize first letter of original name.
+  const getLocalName = (raw) => {
+    return localizeDistrictName(t, raw);
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -23,17 +31,24 @@ const CustomSearchableSelect = ({ data, selectedValue, onChange }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredData = searchTerm.trim() === '' 
-    ? data 
-    : data.filter(d => d.district.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Search against BOTH the English key and the localized Hindi name
+  // so users can type in either script and get results.
+  const filteredData = searchTerm.trim() === ''
+    ? data
+    : data.filter(d => {
+        const term = searchTerm.toLowerCase();
+        const enMatch = d.district.toLowerCase().includes(term);
+        const hiMatch = getLocalName(d.district).toLowerCase().includes(term);
+        return enMatch || hiMatch;
+      });
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative', minWidth: '320px' }}>
       <div style={{ position: 'relative' }}>
         <input 
           type="text"
-          placeholder={selectedValue || t("searchDistrictPlaceholder")}
-          value={isOpen ? searchTerm : selectedValue}
+          placeholder={selectedValue ? getLocalName(selectedValue) : t("searchDistrictPlaceholder")}
+          value={isOpen ? searchTerm : (selectedValue ? getLocalName(selectedValue) : '')}
           onFocus={() => { setIsOpen(true); setSearchTerm(''); }}
           onChange={e => {
             setSearchTerm(e.target.value);
@@ -65,10 +80,11 @@ const CustomSearchableSelect = ({ data, selectedValue, onChange }) => {
               onMouseOver={e => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = '#ea580c'; }}
               onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#1e293b'; }}
             >
-              {d.district}
+              {/* Display the localized name — internal onChange still passes raw English key */}
+              {getLocalName(d.district)}
             </div>
           )) : (
-            <div style={{ padding: '12px 16px', color: '#64748b', textAlign: 'center' }}>No districts matching '{searchTerm}'</div>
+            <div style={{ padding: '12px 16px', color: '#64748b', textAlign: 'center' }}>{t('noMatchingDistricts') || `No districts matching '${searchTerm}'`}</div>
           )}
         </div>
       )}
@@ -96,15 +112,19 @@ const DistrictCompare = () => {
 
   const getDistrictData = (name) => data.find(d => d.district === name);
   const selectedData = getDistrictData(selectedDistrictName);
-  // Helper to safely format district name explicitly
-  const getDistrictName = (name) => {
-    if (!name) return "";
-    const nameMap = t('districtNameMap');
-    if (nameMap && nameMap[name.toLowerCase()]) {
-      return nameMap[name.toLowerCase()];
-    }
-    return name.charAt(0).toUpperCase() + name.slice(1);
+  // ---------------------------------------------------------------
+  // getLocalizedDistrictName — Module 3 / Module 4 helper
+  // Safety Rule 3: always falls back to capitalized original if the
+  //   district is absent from translations.json.
+  // Safety Rule: lookup key is ALWAYS lowercased to match JSON keys.
+  // ---------------------------------------------------------------
+  const getLocalizedDistrictName = (name) => {
+    return localizeDistrictName(t, name);
   };
+
+  // Keep legacy alias so existing JSX that calls getDistrictName still works
+  const getDistrictName = getLocalizedDistrictName;
+  const selectedDistrictLabel = getDistrictName(selectedDistrictName);
 
 
   // Mock consistent value generators
@@ -194,27 +214,41 @@ const DistrictCompare = () => {
     autoTable(doc, {
       startY: 56,
       didParseCell: function(data) {
-        if (data.section === 'body' && data.column.index === 0) {
-          if (/[a-zA-Z]/.test(data.cell.raw)) {
-             data.cell.styles.font = 'helvetica';
-          }
+        // For English cells, force helvetica so Devanagari font doesn't affect them
+        if (language !== 'hi' && data.section === 'body' && data.column.index === 0) {
+          data.cell.styles.font = 'helvetica';
         }
       },
       head: [[t("districtName"), t("totalPopulation"), t("literacyRate")]],
       body: [
         [
-          getDistrictName(selectedData.district), 
-          selectedData.population?.toLocaleString() || 'N/A', 
+          // PDF header district name is fully localized via getLocalizedDistrictName
+          getLocalizedDistrictName(selectedData.district),
+          selectedData.population?.toLocaleString() || 'N/A',
           selectedData.literacy_rate?.toFixed(2) || 'N/A'
         ]
       ],
       theme: 'grid',
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'normal' },
-      styles: { 
-          font: language === 'hi' ? 'NotoSansDevanagari' : 'helvetica', 
-          fontStyle: 'normal',
-          fontSize: 11, 
-          cellPadding: 6 
+      // -----------------------------------------------------------
+      // Module 3 PDF Triple-Check:
+      // Apply NotoSansDevanagari to ALL THREE font scopes to prevent
+      // '????' character corruption in any cell.
+      // -----------------------------------------------------------
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: 255,
+        fontStyle: 'normal',
+        font: language === 'hi' ? 'NotoSansDevanagari' : 'helvetica',
+      },
+      bodyStyles: {
+        font: language === 'hi' ? 'NotoSansDevanagari' : 'helvetica',
+        fontStyle: 'normal',
+      },
+      styles: {
+        font: language === 'hi' ? 'NotoSansDevanagari' : 'helvetica',
+        fontStyle: 'normal',
+        fontSize: 11,
+        cellPadding: 6,
       },
       margin: { left: 20, right: 20 }
     });
@@ -294,13 +328,19 @@ const DistrictCompare = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             
             <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', background: '#f8fafc' }}>
-              <h3 style={{ fontSize: '1.1rem', color: '#1e293b', marginBottom: '16px', textAlign: 'center' }}>{selectedDistrictName} {t('vsNationalSetup')}</h3>
+              <h3 style={{ fontSize: '1.1rem', color: '#1e293b', marginBottom: '16px', textAlign: 'center' }}>
+                {getDistrictName(selectedDistrictName)} {t('vsNationalSetup')}
+              </h3>
               <div style={{ height: 260 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barData} margin={{ top: 20, right: 40, left: 20, bottom: 30 }}>
                     <XAxis dataKey="name" />
                     <YAxis />
-                    <Tooltip cursor={{fill: 'transparent'}} />
+                    <Tooltip
+                      cursor={{fill: 'transparent'}}
+                      formatter={(value) => [Number(value).toFixed(2), '']}
+                      labelFormatter={() => getDistrictName(selectedDistrictName)}
+                    />
                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
                     <Bar name={getDistrictName(selectedDistrictName)} dataKey={selectedDistrictName} fill="#ea580c" radius={[4, 4, 0, 0]} />
                     <Bar dataKey={t('nationalAverage')} fill="#1e293b" radius={[4, 4, 0, 0]} />
@@ -347,7 +387,7 @@ const DistrictCompare = () => {
               </div>
               
               <p style={{ fontSize: '1.25rem', color: '#7c2d12', lineHeight: 1.6, flex: 1, margin: 0, fontWeight: 500 }}>
-                <strong>{t('policyGapIdentified')}</strong> {t('literacy_insight_prefix')} <span style={{textTransform: 'capitalize'}}>{selectedDistrictName}</span> {t('literacy_insight_suffix')} {selectedData?.literacy_rate.toFixed(1)}{t('literacy_insight_end')}
+                <strong>{t('policyGapIdentified')}</strong> {t('literacy_insight_prefix')} <span>{selectedDistrictLabel}</span> {t('literacy_insight_suffix')} {selectedData?.literacy_rate.toFixed(1)}{t('literacy_insight_end')}
                 {' '}{gap > 0 ? t('below_national').replace('{{gap}}', Math.abs(gap).toFixed(1)) : t('above_national').replace('{{gap}}', Math.abs(gap).toFixed(1))}
                 <br/><br/>
                 <strong>{t('recommendation')}</strong> {gap > 0 ? t('prioritizeSarvaShiksha') : t('focusInfrastructure')}

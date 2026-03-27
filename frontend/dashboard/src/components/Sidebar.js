@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Map, BarChart2, Cpu } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import logo from '../assets/logo.png'; // Assuming you have a logo image in assets folder
 
 const Sidebar = () => {
   const location = useLocation();
@@ -26,8 +27,13 @@ const Sidebar = () => {
       flexDirection: 'column',
       boxShadow: '2px 0 10px rgba(0,0,0,0.1)'
     }}>
-      <div style={{ padding: '24px', borderBottom: '1px solid #1e293b' }}>
-        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.5px' }}>{t('brand')}</h2>
+      <div style={{ padding: '24px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{backgroundColor: 'rgba(255, 255, 255, 0.9)',
+padding: '6px',borderRadius: '8px',display: 'flex',alignItems: 'center',
+justifyContent: 'center',boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+  }}>
+        <img src={logo} alt="BPIS Logo" style={{ width: 'auto', height: '55px',objectFit: 'contain' }} /></div>
+        <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 700, letterSpacing: '0.5px',lineHeight: 1.2,color:'#ffffff' }}>{t('brand')}</h2>
       </div>
       
       <nav style={{ flex: 1, padding: '20px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>

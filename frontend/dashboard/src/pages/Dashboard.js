@@ -6,6 +6,7 @@ import PopulationChart from "../components/PopulationChart";
 import Insights from "../components/Insights";
 import SummaryCards from "../components/SummaryCards";
 import AIPolicyAdvisor from "../components/AIPolicyAdvisor";
+// import PriorityChart from "../components/PriorityChart";
 function Dashboard() {
   return (
     <div style={{padding:"20px"}}>

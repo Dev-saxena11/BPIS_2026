@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
+import ChatbotFAB from './ChatbotFAB';
 import './ChatBot.css'; // Import standard CSS to fix the un-styled component issue
 
 const ChatBot = () => {
@@ -104,13 +105,7 @@ const ChatBot = () => {
                     </div>
                 </div>
             ) : (
-                <button
-                    onClick={() => setIsOpen(true)}
-                    className="chatbot-fab"
-                    aria-label="Open Chat"
-                >
-                    <MessageCircle size={28} />
-                </button>
+                <ChatbotFAB onClick={() => setIsOpen(true)} />
             )}
         </div>
     );

@@ -2,6 +2,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { getLocalizedDistrictName } from "../utils/districtLocalization";
 
 function PopulationChart() {
   const { t } = useLanguage();
@@ -12,16 +13,14 @@ function PopulationChart() {
       .then(res => {
         const topPopulation = res.data
           .sort((a, b) => b.population - a.population)
-          .slice(0, 10);
+          .slice(0, 5);
         setData(topPopulation);
       });
   }, []);
 
   // Translate a district name using the map, with capitalization fallback
   const getDistrictLabel = (val) => {
-    const nameMap = t('districtNameMap');
-    const mapped = (nameMap && nameMap[val?.toLowerCase()]) ? nameMap[val.toLowerCase()] : val;
-    return mapped?.charAt(0).toUpperCase() + mapped?.slice(1);
+    return getLocalizedDistrictName(t, val);
   };
 
   // Custom tooltip: translates 'population' key label
@@ -44,10 +43,11 @@ function PopulationChart() {
   return (
     <div style={{ width: "100%", height: 400, marginBottom: "40px" }}>
       <h3>{t('topPopulationDistricts')}</h3>
-      <ResponsiveContainer>
-        <BarChart data={data}>
-          <XAxis dataKey="district" tickFormatter={getDistrictLabel} />
-          <YAxis />
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 7 }} >
+          <XAxis dataKey="district" interval={0} angle={-45}  textAnchor="end" height={80} fontSize={12} tickFormatter={getDistrictLabel} fontWeight={700} tick={{ fill: '#000000' }} />
+          {/* <XAxis dataKey="district" tickFormatter={getDistrictLabel} /> */}
+          <YAxis tick={{ fill: '#000000' }} fontSize={12} fontWeight={700}/>
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="population" fill="#3498db" />
         </BarChart>

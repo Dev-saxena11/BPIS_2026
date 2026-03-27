@@ -6,6 +6,8 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "leaflet/dist/leaflet.css";
+import { getLocalizedDistrictName } from "../utils/districtLocalization";
+
 
 /* Controller used to zoom map when a district is selected */
 function MapController({ selectedDistrict, geoData }) {
@@ -33,7 +35,7 @@ function MapController({ selectedDistrict, geoData }) {
 }
 
 function MapView() {
-  const { t } = useLanguage();
+  const { t ,language} = useLanguage();
   const [geoData, setGeoData] = useState(null);
   const [priorityData, setPriorityData] = useState([]);
   const [districtList, setDistrictList] = useState([]);
@@ -67,6 +69,28 @@ function MapView() {
     );
 
     return match ? match.priority_score : 0;
+  };
+
+  const getLocalizedStateName = (stateName) => {
+    if (typeof stateName !== "string") return "";
+
+    const rawName = stateName.trim();
+    if (!rawName) return "";
+
+    const stateMap = t("stateNameMap");
+    const normalizedKey = rawName.toLowerCase();
+
+    if (
+      stateMap &&
+      typeof stateMap === "object" &&
+      !Array.isArray(stateMap) &&
+      typeof stateMap[normalizedKey] === "string" &&
+      stateMap[normalizedKey].trim()
+    ) {
+      return stateMap[normalizedKey];
+    }
+
+    return rawName.charAt(0).toUpperCase() + rawName.slice(1);
   };
 
   /* Style districts */
@@ -103,13 +127,16 @@ function MapView() {
     const name = feature.properties?.district;
     if (!name) return;
 
-    layer.bindTooltip(name);
-
+    layer.bindTooltip(getLocalizedDistrictName(t, name));
+    
     const match = priorityData.find(
       (d) => d.district?.toLowerCase() === name.toLowerCase(),
     );
 
     if (!match) return;
+
+    const districtLabel = getLocalizedDistrictName(t, match.district);
+    const stateLabel = getLocalizedStateName(match.state);
 
     layer.on("click", async () => {
       try {
@@ -126,9 +153,9 @@ function MapView() {
           .bindPopup(
             `
           <div style="font-size:14px">
-            <b>District:</b> ${match.district}<br/>
-            <b>State:</b> ${match.state}<br/>
-            <b>Population:</b> ${match.population?.toLocaleString()}<br/>
+            <b>District:</b> ${districtLabel}<br/>
+            <b>State:</b> ${stateLabel}<br/>
+            <b>Population:</b> ${match.population?.toLocaleString('en-IN')}<br/>
             <b>Literacy Rate:</b> ${match.literacy_rate?.toFixed(2)}%<br/>
             <b>Priority Score:</b> ${match.priority_score?.toFixed(2)}<br/><br/>
 
@@ -191,6 +218,7 @@ function MapView() {
 
         {geoData && (
           <GeoJSON
+            key={language}
             data={geoData}
             style={styleDistrict}
             onEachFeature={onEachDistrict}

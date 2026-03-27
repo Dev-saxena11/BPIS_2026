@@ -59,7 +59,7 @@ function PriorityChart() {
       .then((result) => {
         const top = result
           .sort((a, b) => b.priority_score - a.priority_score)
-          .slice(0, 5);
+          .slice(0,5);
         setData(top);
       });
   }, []);
@@ -68,9 +68,9 @@ function PriorityChart() {
     <div style={{ width: "100%", height: 300, background: "#fff", padding: "10px", borderRadius: "8px" }}>
       <h4 style={{ textAlign: "center", color: "#1e293b" }}>Highest Priority Districts</h4>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <XAxis dataKey="district" tick={{ fontSize: 12 }} interval={0} />
-          <YAxis />
+        <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 50 }}>
+          <XAxis dataKey="district" tick={{ fontSize: 20 }} interval={0} angle={-45}  textAnchor="end" height={80} fontSize={20}  />
+          <YAxis tick={{ fill: '#64748b' }} fontSize={12}/>
           <Tooltip cursor={{ fill: '#f1f5f9' }} />
           {/* Using a color scale: higher priority = darker red */}
           <Bar dataKey="priority_score" radius={[4, 4, 0, 0]}>

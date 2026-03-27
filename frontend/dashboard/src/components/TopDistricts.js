@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { useLanguage } from "../contexts/LanguageContext";
+import { getLocalizedDistrictName } from "../utils/districtLocalization";
 
 function TopDistricts() {
+  const { t } = useLanguage();
 
   const [districts, setDistricts] = useState([]);
 
@@ -29,7 +32,7 @@ function TopDistricts() {
         {districts.map((d, index) => (
 
           <li key={index}>
-            {d.district} ({d.state})
+            {getLocalizedDistrictName(t, d.district)} ({d.state})
           </li>
 
         ))}
