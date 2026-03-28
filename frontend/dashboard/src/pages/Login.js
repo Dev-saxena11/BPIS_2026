@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import logo from "../assets/logo.png"; // Ensure you have a logo image at this path or update accordingly
+
 import {
   User,
   Building2,
@@ -184,7 +185,7 @@ const Login = ({ onLogin }) => {
 
       const data = await response.json();
 
-      if (response.ok || data.success) {
+      if (response.ok && data.success) {
         setView("otp");
       } else if (response.status === 404) {
         setAuthError(
@@ -248,14 +249,15 @@ const Login = ({ onLogin }) => {
     try {
       let formattedNum = signupMobile.trim();
       if (!formattedNum.startsWith("+")) {
-        formattedNum = `+91${formattedNum.replace(/^0+/, "")}`;
+        // Agar +91 nahi hai toh add karein, leading zeros hata kar
+        formattedNum = `+91${formattedNum.replace(/^0+/, "").replace(/\s+/g, "")}`;
       }
 
-      const response = await fetch("http://localhost:8000/api/auth/signup", {
+      const response = await fetch("http://localhost:8000/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: signupName,
+          full_name: signupName,
           mobile: formattedNum,
           designation: signupDesignation,
           department: signupDepartment || "General",
@@ -263,7 +265,7 @@ const Login = ({ onLogin }) => {
       });
       const data = await response.json();
 
-      if (response.ok && data.status === "success") {
+      if (response.ok && data.success) {
         setSignupSuccess(true);
         setTimeout(() => {
           setSignupSuccess(false);
@@ -274,9 +276,8 @@ const Login = ({ onLogin }) => {
           setSignupDepartment("");
         }, 2500);
       } else {
-        setAuthError("Registration Failed. Try again.");
-      }
-    } catch (err) {
+        setAuthError(data.detail || "Registration Failed. Try again.");      }
+      } catch (err) {
       setAuthError("Registration Failed. Try again.");
     } finally {
       setIsLoading(false);

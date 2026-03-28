@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Map, BarChart2, Cpu } from "lucide-react";
+import { Map, BarChart2, Cpu, Search } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import logo from "../assets/logo.png"; // Assuming you have a logo image in assets folder
 
@@ -19,6 +19,11 @@ const Sidebar = () => {
       path: "/policy-advisor",
       label: t("navPolicyAI"),
       icon: <Cpu size={20} />,
+    },
+    {
+      path: "/scheme-repository",
+      label: t("navSchemeRepository"),
+      icon: <Search size={20} />,
     },
   ];
 

@@ -9,6 +9,7 @@ import Overview from "./pages/Overview";
 import Analytics from "./pages/Analytics";
 import PolicyAI from "./pages/PolicyAI";
 import Login from "./pages/Login";
+import SchemeRepository from "./scomponents/SchemeRepository";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -33,6 +34,10 @@ function App() {
                   <Route path="/" element={<Overview />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/policy-advisor" element={<PolicyAI />} />
+                  <Route
+                    path="/scheme-repository"
+                    element={<SchemeRepository />}
+                  />
                 </Routes>
               </div>
             </div>

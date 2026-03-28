@@ -27,8 +27,10 @@ Uvicorn: ASGI server for deployment.
 1. Backend Setup
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python init_db.py
+uvicorn main:app --reload
 Backend runs on: http://localhost:8000
+Temporary compatibility: `uvicorn app.main:app --reload` also works during the transition, but `uvicorn main:app --reload` is now the preferred command.
 2. Frontend Setup
 cd frontend
 npm install
