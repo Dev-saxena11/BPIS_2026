@@ -1,12 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
 import ChatbotFAB from './ChatbotFAB';
+import { useLanguage } from '../contexts/LanguageContext';
 import './ChatBot.css'; // Import standard CSS to fix the un-styled component issue
 
 const ChatBot = () => {
+    const { language } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
+    const [responseSource, setResponseSource] = useState(null);
     const [messages, setMessages] = useState([
-        { sender: 'AI', text: 'Hello! I am the Bharat Policy Assistant. How can I help you navigate the dashboard today?' }
+        {
+            sender: 'AI',
+            text: 'Hello! I am the Bharat Policy Assistant. How can I help you navigate the dashboard today?',
+        }
     ]);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -20,21 +26,35 @@ const ChatBot = () => {
         scrollToBottom();
     }, [messages, isTyping]);
 
+    const buildHistoryPayload = (historyMessages) => {
+        return historyMessages.slice(-4).map((message) => ({
+            role: message.sender === 'AI' ? 'assistant' : 'user',
+            content: message.text,
+        }));
+    };
+
     const handleSend = async () => {
         if (!input.trim()) return;
 
         const userMessage = input.trim();
+        const historyForRequest = buildHistoryPayload(messages);
+
         setMessages((prev) => [...prev, { sender: 'User', text: userMessage }]);
+        setResponseSource(null);
         setInput('');
         setIsTyping(true);
 
         try {
-            const response = await fetch('http://localhost:8000/chat', {
+            const response = await fetch('http://localhost:8000/api/chatbot', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ message: userMessage }),
+                body: JSON.stringify({
+                    message: userMessage,
+                    history: historyForRequest,
+                    current_language: language,
+                }),
             });
 
             if (!response.ok) {
@@ -42,10 +62,28 @@ const ChatBot = () => {
             }
 
             const data = await response.json();
-            setMessages((prev) => [...prev, { sender: 'AI', text: data.response }]);
+            const nextSource = data.source === 'database_augmented' ? 'database_augmented' : null;
+            setResponseSource(nextSource);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    sender: 'AI',
+                    text: data.answer || data.response || 'Sorry, I could not generate a response.',
+                    source: nextSource,
+                    detectedIntent: data.detected_intent || null,
+                },
+            ]);
         } catch (error) {
             console.error('Error fetching chat response:', error);
-            setMessages((prev) => [...prev, { sender: 'AI', text: 'Sorry, I am having trouble connecting to the server.' }]);
+            setResponseSource(null);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    sender: 'AI',
+                    text: 'Sorry, I am having trouble connecting to the server.',
+                    source: null,
+                },
+            ]);
         } finally {
             setIsTyping(false);
         }
@@ -54,7 +92,7 @@ const ChatBot = () => {
     return (
         <div className="chatbot-container">
             {isOpen ? (
-                <div className="chatbot-window">
+                <div key={language} className="chatbot-window" data-latest-source={responseSource || 'none'}>
                     <div className="chatbot-header">
                         <div className="chatbot-header-title">
                             <MessageCircle size={20} />
@@ -70,6 +108,13 @@ const ChatBot = () => {
                             <div key={index} className={`chatbot-message-row ${msg.sender === 'User' ? 'user' : 'ai'}`}>
                                 <div className={`chatbot-bubble ${msg.sender === 'User' ? 'user' : 'ai'}`}>
                                     {msg.text}
+                                    {msg.sender === 'AI' && msg.source === 'database_augmented' && (
+                                        <div className="chatbot-meta">
+                                            <span className="chatbot-verified-badge" title="Response grounded in BPIS database">
+                                                Verified Data
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
