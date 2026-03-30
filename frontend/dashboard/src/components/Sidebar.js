@@ -1,6 +1,16 @@
 import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Map, BarChart2, Cpu, Search, Menu } from "lucide-react";
+import {
+  Map,
+  BarChart2,
+  Cpu,
+  Search,
+  Menu,
+  AlertTriangle,
+  ClipboardList,
+  Lightbulb,
+  NotebookText,
+} from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import logo from "../assets/logo.png";
 
@@ -25,11 +35,31 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
       label: t("navSchemeRepository"),
       icon: <Search size={20} />,
     },
+    {
+      path: "/district-comparison",
+      label: t("navDistrictComparison"),
+      icon: <ClipboardList size={20} />,
+    },
+    {
+      path: "/district-alerts",
+      label: t("navDistrictAlerts"),
+      icon: <AlertTriangle size={20} />,
+    },
+    {
+      path: "/district-explainability",
+      label: t("navDistrictExplainability"),
+      icon: <Lightbulb size={20} />,
+    },
+    {
+      path: "/district-notes",
+      label: t("navDistrictNotes"),
+      icon: <NotebookText size={20} />,
+    },
   ];
 
   const sharedItemStyle = {
     textDecoration: "none",
-    color: "#cbd5e1",
+    color: "#94a3b8",
     display: "flex",
     alignItems: "center",
     gap: "12px",
@@ -40,15 +70,15 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
 
   return (
     <>
-        <div
-          style={{
-            position: "fixed",
-            top: "16px",
-            left: "16px",
-            zIndex: 1005,
-            width: "52px",
-            height: "52px",
-          }}
+      <div
+        style={{
+          position: "fixed",
+          top: "16px",
+          left: "16px",
+          zIndex: 1005,
+          width: "52px",
+          height: "52px",
+        }}
       >
         <button
           type="button"
@@ -66,7 +96,6 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
             cursor: "pointer",
             backgroundColor: "#0f172a",
             color: "white",
-            //boxShadow: "0 8px 18px rgba(15, 23, 42, 0.28)",
             boxShadow: "10px 0 15px -3px rgba(0, 0, 0, 0.1)",
           }}
         >
@@ -74,7 +103,7 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
         </button>
       </div>
 
-      <div
+      <aside
         onMouseLeave={() => setIsExpanded(false)}
         style={{
           position: "fixed",
@@ -161,10 +190,20 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
                 style={{
                   ...sharedItemStyle,
                   padding: "12px 24px",
-                  backgroundColor: isActive ? "#1e293b" : "transparent",
-                  borderLeftColor: isActive ? " 4px solid #3b82f6" : " 4px solid transparent",
                   color: isActive ? "#ffffff" : "#94a3b8",
+                  backgroundColor: isActive
+                    ? item.path === "/"
+                      ? "#24324a"
+                      : "#1e293b"
+                    : "transparent",
+                  borderLeft: isActive
+                    ? "4px solid #3b82f6"
+                    : "4px solid transparent",
                   fontWeight: isActive ? 600 : 400,
+                  boxShadow:
+                    isActive && item.path === "/"
+                      ? "inset 0 0 0 1px rgba(59, 130, 246, 0.18)"
+                      : "none",
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive) {
@@ -197,7 +236,7 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
         >
           {t("footerCopyright")}
         </div>
-      </div>
+      </aside>
     </>
   );
 };

@@ -1,413 +1,1223 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
-import { Sparkles, BrainCircuit, Search, ChevronDown, FileText } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { useLanguage } from '../contexts/LanguageContext';
-import { notoSansDevanagariBase64 } from '../assets/fontBase64';
-import { getLocalizedDistrictName as localizeDistrictName } from '../utils/districtLocalization';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { BarChart3, ChevronDown, FileText, Search, Sparkles, X } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { useLanguage } from "../contexts/LanguageContext";
+import { getPriorityRanking, getSchemeRecommendation } from "../services/api";
+import { getLocalizedDistrictName as localizeDistrictName } from "../utils/districtLocalization";
 
-const CustomSearchableSelect = ({ data, selectedValue, onChange }) => {
-  const { t } = useLanguage();
+const metricLabelMap = {
+  priority_score: "Priority Score",
+  literacy_rate: "Literacy Rate",
+  population: "Population",
+  male_population: "Male Population",
+  female_population: "Female Population",
+  gender_ratio: "Gender Ratio",
+};
+
+const preferredMetricOrder = [
+  "priority_score",
+  "literacy_rate",
+  "population",
+  "male_population",
+  "female_population",
+  "gender_ratio",
+];
+
+const excludedMetrics = new Set([
+  "norm_pop",
+  "norm_illit",
+  "literate_population",
+  "population_weight",
+  "literacy_index",
+]);
+
+const metricColorMap = {
+  priority_score: "#dc2626",
+  literacy_rate: "#2563eb",
+  population: "#059669",
+  male_population: "#0284c7",
+  female_population: "#db2777",
+  gender_ratio: "#4f46e5",
+};
+
+const formatLabel = (key) =>
+  metricLabelMap[key] ||
+  key
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const formatValue = (key, value) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "N/A";
+  }
+
+  const numeric = Number(value);
+
+  if (key.includes("population")) {
+    return Math.round(numeric).toLocaleString("en-IN");
+  }
+
+  if (key.includes("score") || key.includes("rate") || key.includes("index") || key.includes("ratio") || key.includes("weight")) {
+    return numeric.toFixed(2);
+  }
+
+  return numeric.toFixed(2);
+};
+
+const hexToRgb = (hex) => {
+  const normalized = hex.replace("#", "");
+  const bigint = Number.parseInt(normalized, 16);
+  return [
+    (bigint >> 16) & 255,
+    (bigint >> 8) & 255,
+    bigint & 255,
+  ];
+};
+
+function DistrictPicker({ data, selectedDistricts, onAdd, t }) {
+  const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef(null);
 
-  // Localize a raw district key → display name in the active language.
-  // Lookup is always lowercase so it matches JSON keys consistently.
-  // Fallback: capitalize first letter of original name.
-  const getLocalName = (raw) => {
-    return localizeDistrictName(t, raw);
-  };
-
   useEffect(() => {
-    function handleClickOutside(event) {
+    const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setIsOpen(false);
       }
-    }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Search against BOTH the English key and the localized Hindi name
-  // so users can type in either script and get results.
-  const filteredData = searchTerm.trim() === ''
-    ? data
-    : data.filter(d => {
-        const term = searchTerm.toLowerCase();
-        const enMatch = d.district.toLowerCase().includes(term);
-        const hiMatch = getLocalName(d.district).toLowerCase().includes(term);
-        return enMatch || hiMatch;
-      });
+  const filteredDistricts = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return data.filter((district) => {
+      const englishMatch = district.district.toLowerCase().includes(term);
+      const localizedMatch = localizeDistrictName(t, district.district).toLowerCase().includes(term);
+      const notAlreadySelected = !selectedDistricts.includes(district.district);
+      return notAlreadySelected && (!term || englishMatch || localizedMatch);
+    });
+  }, [data, query, selectedDistricts, t]);
+
+  const addAndReset = (districtName) => {
+    onAdd(districtName);
+    setQuery("");
+    setIsOpen(false);
+  };
 
   return (
-    <div ref={wrapperRef} style={{ position: 'relative', minWidth: '320px' }}>
-      <div style={{ position: 'relative' }}>
-        <input 
+    <div ref={wrapperRef} style={{ position: "relative" }}>
+      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <input
           type="text"
-          placeholder={selectedValue ? getLocalName(selectedValue) : t("searchDistrictPlaceholder")}
-          value={isOpen ? searchTerm : (selectedValue ? getLocalName(selectedValue) : '')}
-          onFocus={() => { setIsOpen(true); setSearchTerm(''); }}
-          onChange={e => {
-            setSearchTerm(e.target.value);
+          value={query}
+          placeholder={t("searchDistrictPlaceholder") || "Search district names..."}
+          onFocus={() => setIsOpen(true)}
+          onChange={(event) => {
+            setQuery(event.target.value);
             setIsOpen(true);
           }}
-          style={{ width: '100%', padding: '12px 16px', paddingRight: '40px', borderRadius: '8px', border: isOpen ? '2px solid #0f172a' : '2px solid #cbd5e1', fontSize: '1.05rem', outline: 'none', backgroundColor: '#ffffff', fontWeight: 600, color: '#0f172a', boxSizing: 'border-box', transition: 'border-color 0.2s' }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && filteredDistricts.length > 0) {
+              addAndReset(filteredDistricts[0].district);
+            }
+          }}
+          style={{
+            width: "100%",
+            padding: "12px 16px",
+            borderRadius: "12px",
+            border: "1px solid #cbd5e1",
+            outline: "none",
+            fontSize: "1rem",
+            background: "white",
+            boxSizing: "border-box",
+          }}
         />
-        <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#94a3b8' }}>
-          {isOpen ? <Search size={20} /> : <ChevronDown size={20} />}
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsOpen((current) => !current)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "12px 14px",
+            border: "none",
+            borderRadius: "12px",
+            background: "#0f172a",
+            color: "white",
+            cursor: "pointer",
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {isOpen ? <ChevronDown size={18} /> : <Search size={18} />}
+          {t("districtCompareAdd") || "Add District"}
+        </button>
       </div>
-      
+
       {isOpen && (
-        <div style={{ 
-          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '8px', 
-          backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', 
-          maxHeight: '300px', overflowY: 'auto', zIndex: 1000, 
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' 
-        }}>
-          {filteredData.length > 0 ? filteredData.map(d => (
-            <div 
-              key={d.district}
-              onClick={() => {
-                onChange(d.district);
-                setIsOpen(false);
-                setSearchTerm('');
-              }}
-              style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', color: '#1e293b', fontSize: '1rem', fontWeight: 500 }}
-              onMouseOver={e => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = '#ea580c'; }}
-              onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#1e293b'; }}
-            >
-              {/* Display the localized name — internal onChange still passes raw English key */}
-              {getLocalName(d.district)}
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 10px)",
+            left: 0,
+            right: 0,
+            background: "white",
+            border: "1px solid #e2e8f0",
+            borderRadius: "14px",
+            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
+            overflow: "hidden",
+            zIndex: 1000,
+            maxHeight: "320px",
+            overflowY: "auto",
+          }}
+        >
+          {filteredDistricts.length > 0 ? (
+            filteredDistricts.map((district) => (
+              <button
+                key={district.district}
+                type="button"
+                onClick={() => addAndReset(district.district)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "12px 16px",
+                  border: "none",
+                  borderBottom: "1px solid #f1f5f9",
+                  background: "white",
+                  cursor: "pointer",
+                  color: "#0f172a",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                }}
+                onMouseOver={(event) => {
+                  event.currentTarget.style.backgroundColor = "#f8fafc";
+                }}
+                onMouseOut={(event) => {
+                  event.currentTarget.style.backgroundColor = "white";
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>{localizeDistrictName(t, district.district)}</span>
+                <span style={{ color: "#64748b", fontSize: "0.85rem" }}>{district.state}</span>
+              </button>
+            ))
+          ) : (
+            <div style={{ padding: "14px 16px", color: "#64748b" }}>
+              {t("noMatchingDistricts") || "No districts match your search."}
             </div>
-          )) : (
-            <div style={{ padding: '12px 16px', color: '#64748b', textAlign: 'center' }}>{t('noMatchingDistricts') || `No districts matching '${searchTerm}'`}</div>
           )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-const DistrictCompare = () => {
-  const [data, setData] = useState([]);
-  const [selectedDistrictName, setSelectedDistrictName] = useState('');
-  const { t, language } = useLanguage();
-  
-  useEffect(() => {
-    axios.get("http://localhost:8000/priority-ranking").then(res => {
-      setData(res.data);
-    });
-  }, []);
-
-  if (!data.length) return null;
-
-  // Calculate generic National Averages
-  const nationalLiteracy = data.reduce((acc, d) => acc + (d.literacy_rate || 0), 0) / data.length;
-  const nationalDensity = 382; 
-  const nationalGenderRatio = 943; 
-
-  const getDistrictData = (name) => data.find(d => d.district === name);
-  const selectedData = getDistrictData(selectedDistrictName);
-  // ---------------------------------------------------------------
-  // getLocalizedDistrictName — Module 3 / Module 4 helper
-  // Safety Rule 3: always falls back to capitalized original if the
-  //   district is absent from translations.json.
-  // Safety Rule: lookup key is ALWAYS lowercased to match JSON keys.
-  // ---------------------------------------------------------------
-  const getLocalizedDistrictName = (name) => {
-    return localizeDistrictName(t, name);
-  };
-
-  // Keep legacy alias so existing JSX that calls getDistrictName still works
-  const getDistrictName = getLocalizedDistrictName;
-  const selectedDistrictLabel = getDistrictName(selectedDistrictName);
-
-
-  // Mock consistent value generators
-  const getMockedMetric = (name, base) => {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return base + (hash % (base * 0.15)); // +/- 15% variance
-  };
-
-  const currentLiteracy = selectedData?.literacy_rate || 0;
-  const currentDensity = selectedDistrictName ? getMockedMetric(selectedDistrictName, 350) : 0;
-  const currentGenderRatio = selectedDistrictName ? getMockedMetric(selectedDistrictName, 900) : 0;
-
-  const barData = selectedDistrictName ? [
-    { name: t('literacyRate'), [selectedDistrictName]: currentLiteracy, [t('nationalAverage')]: nationalLiteracy }
-  ] : [];
-
-  const radarData = selectedDistrictName ? [
-    { subject: t('literacyRate'), A: currentLiteracy, B: nationalLiteracy, fullMark: 100 },
-    { subject: t('density'), A: currentDensity/4, B: nationalDensity/4, fullMark: 100 },
-    { subject: t('genderRatio'), A: currentGenderRatio/10, B: nationalGenderRatio/10, fullMark: 100 }
-  ] : [];
-
-  const gap = nationalLiteracy - currentLiteracy;
-
-  // --- PDF REPORT GENERATOR ---
-  const handleDownloadReport = () => {
-    if (!selectedData) return;
-
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-
-    if (language === 'hi') {
-      doc.addFileToVFS('NotoSansDevanagari-Regular.ttf', notoSansDevanagariBase64);
-      doc.addFont('NotoSansDevanagari-Regular.ttf', 'NotoSansDevanagari', 'normal');
-      doc.setFont('NotoSansDevanagari');
-    }
-
-    // Gov Letterhead Outline
-    doc.setDrawColor(15, 23, 42); 
-    doc.setLineWidth(1);
-    doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
-
-    const setFontSafe = (weight) => {
-        if (language === 'hi') {
-            doc.setFont('NotoSansDevanagari', 'normal');
-        } else {
-            doc.setFont('helvetica', weight);
-        }
-    };
-
-    // Official Title Header
-    doc.setTextColor(15, 23, 42);
-    setFontSafe('bold');
-    doc.setFontSize(16);
-    doc.text(t("reportHeader"), pageWidth / 2, 25, { align: "center" });
-
-    // Auto-Timestamp
-    setFontSafe('normal');
-    doc.setFontSize(10);
-    doc.text(`${t("generatedOn")}: ${new Date().toLocaleString()}`, pageWidth / 2, 32, { align: "center" });
-
-    // Section Bar
-    doc.setDrawColor(203, 213, 225); // slate-300
-    doc.line(20, 40, pageWidth - 20, 40);
-
-    // District Table
-    doc.setFontSize(14);
-    setFontSafe('bold');
-    doc.setTextColor(234, 88, 12); // BPIS Orange
-    doc.text(`${t("districtProfile")}: `, 20, 52);
-    const titleWidth = doc.getTextWidth(`${t("districtProfile")}: `);
-    doc.setFont('helvetica', 'bold');
-    const pDName = getDistrictName(selectedDistrictName);
-    if (/[a-zA-Z]/.test(pDName)) {
-        doc.setFont('helvetica', 'bold');
-    } else {
-        if (language === 'hi') {
-            doc.setFont('NotoSansDevanagari', 'normal');
-        }
-    }
-    doc.text(pDName, 20 + titleWidth, 52);
-
-    autoTable(doc, {
-      startY: 56,
-      didParseCell: function(data) {
-        // For English cells, force helvetica so Devanagari font doesn't affect them
-        if (language !== 'hi' && data.section === 'body' && data.column.index === 0) {
-          data.cell.styles.font = 'helvetica';
-        }
-      },
-      head: [[t("districtName"), t("totalPopulation"), t("literacyRate")]],
-      body: [
-        [
-          // PDF header district name is fully localized via getLocalizedDistrictName
-          getLocalizedDistrictName(selectedData.district),
-          selectedData.population?.toLocaleString() || 'N/A',
-          selectedData.literacy_rate?.toFixed(2) || 'N/A'
-        ]
-      ],
-      theme: 'grid',
-      // -----------------------------------------------------------
-      // Module 3 PDF Triple-Check:
-      // Apply NotoSansDevanagari to ALL THREE font scopes to prevent
-      // '????' character corruption in any cell.
-      // -----------------------------------------------------------
-      headStyles: {
-        fillColor: [15, 23, 42],
-        textColor: 255,
-        fontStyle: 'normal',
-        font: language === 'hi' ? 'NotoSansDevanagari' : 'helvetica',
-      },
-      bodyStyles: {
-        font: language === 'hi' ? 'NotoSansDevanagari' : 'helvetica',
-        fontStyle: 'normal',
-      },
-      styles: {
-        font: language === 'hi' ? 'NotoSansDevanagari' : 'helvetica',
-        fontStyle: 'normal',
-        fontSize: 11,
-        cellPadding: 6,
-      },
-      margin: { left: 20, right: 20 }
-    });
-
-    // AI Policy Recommendation Section
-    const nextY = doc.lastAutoTable.finalY + 15 || 95;
-    
-    doc.setFontSize(14);
-    setFontSafe('bold');
-    doc.setTextColor(234, 88, 12);
-    doc.text(t("strategicAdvice"), 20, nextY);
-
-    doc.setFontSize(11);
-    setFontSafe('normal');
-    doc.setTextColor(15, 23, 42);
-    
-    // Dynamic bullet math
-    const gapLiteral = Math.abs(gap).toFixed(1);
-    const popText = selectedData.population ? (selectedData.population / 1000000).toFixed(1) + "M" : "the regional";
-    
-    const bullet1 = gap > 0 
-      ? t("bullet1Gap").replace("{{gap}}", gapLiteral) 
-      : t("bullet1Surplus").replace("{{gap}}", gapLiteral);
-    const bullet2 = t("bullet2").replace("{{pop}}", popText);
-    const bullet3 = t("bullet3");
-
-    doc.text(bullet1, 20, nextY + 10);
-    doc.text(bullet2, 20, nextY + 18);
-    doc.text(bullet3, 20, nextY + 26);
-
-    // Official Footer Mark
-    doc.setFontSize(9);
-    doc.setTextColor(100, 116, 139); // slate-500
-    doc.text(t("confidentialFooter"), pageWidth / 2, pageHeight - 15, { align: "center" });
-
-    // Auto-Download trigger
-    doc.save(`BPIS_Report_${selectedDistrictName.replace(/\s+/g, '_')}.pdf`);
-  };
-
-  return (
-    <div className="gov-card" style={{ background: '#ffffff', marginBottom: '32px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 className="gov-heading" style={{ margin: 0, fontSize: '1.5rem' }}>{t('districtCompareTitle')}</h2>
-        
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          {selectedData && (
-            <button 
-              onClick={handleDownloadReport}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                background: '#ea580c', color: 'white', border: 'none',
-                padding: '12px 20px', borderRadius: '8px', cursor: 'pointer',
-                fontWeight: 600, fontSize: '1rem',
-                boxShadow: '0 4px 6px -1px rgba(234, 88, 12, 0.2)',
-                transition: 'background-color 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-              onMouseOver={e => e.currentTarget.style.backgroundColor = '#c2410c'}
-              onMouseOut={e => e.currentTarget.style.backgroundColor = '#ea580c'}
-            >
-              <FileText size={20} /> {t('exportPDFBtn')}
-            </button>
-          )}
-
-          <CustomSearchableSelect 
-            data={data}
-            selectedValue={selectedDistrictName}
-            onChange={setSelectedDistrictName}
-          />
-        </div>
-      </div>
-
-      {selectedData ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '24px' }}>
-          
-          {/* Charts Column */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-            
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', background: '#f8fafc' }}>
-              <h3 style={{ fontSize: '1.1rem', color: '#1e293b', marginBottom: '16px', textAlign: 'center' }}>
-                {getDistrictName(selectedDistrictName)} {t('vsNationalSetup')}
-              </h3>
-              <div style={{ height: 260 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barData} margin={{ top: 20, right: 40, left: 20, bottom: 30 }}>
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip
-                      cursor={{fill: 'transparent'}}
-                      formatter={(value) => [Number(value).toFixed(2), '']}
-                      labelFormatter={() => getDistrictName(selectedDistrictName)}
-                    />
-                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                    <Bar name={getDistrictName(selectedDistrictName)} dataKey={selectedDistrictName} fill="#ea580c" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey={t('nationalAverage')} fill="#1e293b" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', background: '#f8fafc' }}>
-              <h3 style={{ fontSize: '1.1rem', color: '#1e293b', marginBottom: '16px', textAlign: 'center' }}>{t('socioEconomicRadar')}</h3>
-              <div style={{ height: 260 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="subject" tick={{fill: '#64748b', fontSize: 13, fontWeight: 500}} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                    <Radar name={getDistrictName(selectedDistrictName)} dataKey="A" stroke="#ea580c" fill="#ea580c" fillOpacity={0.6} />
-                    <Radar name={t('nationalAverage')} dataKey="B" stroke="#1e293b" fill="#1e293b" fillOpacity={0.4} />
-                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                    <Tooltip />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            
-          </div>
-
-          {/* AI Insight Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ 
-              background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', 
-              border: '1px solid #fdba74', 
-              borderRadius: '12px', 
-              padding: '28px', 
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ background: '#ea580c', padding: '8px', borderRadius: '8px' }}>
-                  <Sparkles size={24} color="white" />
-                </div>
-                <h3 style={{ fontSize: '1.3rem', color: '#9a3412', margin: 0, fontWeight: 800 }}>{t('aiPolicyInsight')}</h3>
-              </div>
-              
-              <p style={{ fontSize: '1.25rem', color: '#7c2d12', lineHeight: 1.6, flex: 1, margin: 0, fontWeight: 500 }}>
-                <strong>{t('policyGapIdentified')}</strong> {t('literacy_insight_prefix')} <span>{selectedDistrictLabel}</span> {t('literacy_insight_suffix')} {selectedData?.literacy_rate.toFixed(1)}{t('literacy_insight_end')}
-                {' '}{gap > 0 ? t('below_national').replace('{{gap}}', Math.abs(gap).toFixed(1)) : t('above_national').replace('{{gap}}', Math.abs(gap).toFixed(1))}
-                <br/><br/>
-                <strong>{t('recommendation')}</strong> {gap > 0 ? t('prioritizeSarvaShiksha') : t('focusInfrastructure')}
-              </p>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ea580c', fontSize: '1rem', fontWeight: 700, marginTop: '20px' }}>
-                <BrainCircuit size={18} /> {t('generatedByBPIS')}
-              </div>
-            </div>
-          </div>
-
-        </div>
-      ) : (
-        <div style={{ padding: '60px 0', textAlign: 'center', color: '#94a3b8', border: '2px dashed #cbd5e1', borderRadius: '12px', background: '#f8fafc' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '8px' }}>{t('noDistrictSelected')}</h3>
-          <p>{t('pleaseSelectDistrict')}</p>
         </div>
       )}
     </div>
   );
+}
+
+function DistrictCompare() {
+  const { t } = useLanguage();
+  const [data, setData] = useState([]);
+  const [selectedDistricts, setSelectedDistricts] = useState([]);
+  const [recommendations, setRecommendations] = useState({});
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+
+  useEffect(() => {
+    getPriorityRanking().then((response) => {
+      setData(response || []);
+    });
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!selectedDistricts.length) {
+      setRecommendations({});
+      return undefined;
+    }
+
+    setLoadingRecommendations(true);
+
+    Promise.all(
+      selectedDistricts.map(async (districtName) => {
+        try {
+          const result = await getSchemeRecommendation(districtName);
+          return [districtName, result];
+        } catch (error) {
+          return [
+            districtName,
+            {
+              district: districtName,
+              recommended_schemes: [],
+              issue_details: [],
+              scheme_explanations: {},
+              error: error?.response?.data?.detail || "Failed to load recommendations.",
+            },
+          ];
+        }
+      }),
+    )
+      .then((entries) => {
+        if (!isActive) return;
+        setRecommendations(Object.fromEntries(entries));
+      })
+      .finally(() => {
+        if (isActive) {
+          setLoadingRecommendations(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedDistricts]);
+
+  const selectedRecords = useMemo(
+    () =>
+      selectedDistricts
+        .map((districtName) =>
+          data.find((district) => district.district.toLowerCase() === districtName.toLowerCase()),
+        )
+        .filter(Boolean),
+    [data, selectedDistricts],
+  );
+
+  const handleExportPdf = () => {
+    if (!selectedRecords.length) {
+      return;
+    }
+
+    const doc = new jsPDF("landscape", "pt", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const topMargin = 40;
+    const footerReserve = 52;
+    const bottomLimit = pageHeight - footerReserve;
+    let nextY = 0;
+
+    const startNewPage = () => {
+      doc.addPage();
+      nextY = topMargin;
+    };
+
+    const ensureSpace = (height) => {
+      if (nextY + height > bottomLimit) {
+        startNewPage();
+      }
+    };
+
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 72, "F");
+    doc.setFillColor(234, 88, 12);
+    doc.rect(0, 72, pageWidth, 8, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(t("reportHeader") || "BPIS District Comparison Report", pageWidth / 2, 30, {
+      align: "center",
+    });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(
+      `${t("generatedOn") || "Generated on"}: ${new Date().toLocaleString()}`,
+      pageWidth / 2,
+      50,
+      { align: "center" },
+    );
+
+    nextY = 104;
+    doc.setTextColor(15, 23, 42);
+    const selectedDistrictLabels = selectedRecords
+      .map((district) => localizeDistrictName(t, district.district))
+      .join(", ");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Selected districts:", 40, nextY);
+    doc.setFont("helvetica", "normal");
+    doc.text(selectedDistrictLabels, 40, nextY + 16, {
+      maxWidth: pageWidth - 80,
+    });
+
+    nextY += 32;
+    ensureSpace(34);
+    const summaryCardsY = nextY;
+    const summaryCardWidth = (pageWidth - 100) / 3;
+    const summaryCards = [
+      { label: "Districts", value: String(selectedRecords.length), fill: [15, 23, 42] },
+      {
+        label: "Avg literacy",
+        value: `${(
+          selectedRecords.reduce((sum, district) => sum + Number(district.literacy_rate || 0), 0) /
+          selectedRecords.length
+        ).toFixed(2)}%`,
+        fill: [37, 99, 235],
+      },
+      {
+        label: "Avg priority",
+        value: `${(
+          selectedRecords.reduce((sum, district) => sum + Number(district.priority_score || 0), 0) /
+          selectedRecords.length
+        ).toFixed(2)}`,
+        fill: [234, 88, 12],
+      },
+    ];
+
+    summaryCards.forEach((card, index) => {
+      const x = 40 + index * (summaryCardWidth + 10);
+      doc.setFillColor(...card.fill);
+      doc.roundedRect(x, summaryCardsY, summaryCardWidth, 34, 10, 10, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(card.label, x + 12, summaryCardsY + 12);
+      doc.setFontSize(13);
+      doc.text(card.value, x + 12, summaryCardsY + 25);
+    });
+
+    nextY = summaryCardsY + 52;
+    ensureSpace(26);
+    const badgeY = nextY;
+    const selectedBadgeWidth = Math.min(120, (pageWidth - 80) / Math.max(selectedRecords.length, 1) - 8);
+    selectedRecords.forEach((district, index) => {
+      const x = 40 + index * (selectedBadgeWidth + 8);
+      const badgeColor = index % 2 === 0 ? [234, 88, 12] : [15, 23, 42];
+      doc.setFillColor(...badgeColor);
+      doc.roundedRect(x, badgeY, selectedBadgeWidth, 24, 8, 8, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9);
+      doc.text(
+        localizeDistrictName(t, district.district),
+        x + selectedBadgeWidth / 2,
+        badgeY + 15,
+        { align: "center", maxWidth: selectedBadgeWidth - 8 },
+      );
+    });
+
+    nextY = badgeY + 34;
+    ensureSpace(28);
+    const legendItems = numericMetrics.slice(0, 6);
+    if (legendItems.length > 0) {
+      let legendX = 40;
+      const legendY = nextY;
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(40, legendY - 14, pageWidth - 80, 28, 10, 10, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Metric color legend:", legendX, legendY - 4);
+      legendX += 110;
+      legendItems.forEach((metric) => {
+        const label = formatLabel(metric);
+        const fill = metricColorMap[metric] || "#ea580c";
+        doc.setFillColor(fill);
+        doc.roundedRect(legendX, legendY - 8, 10, 10, 3, 3, "F");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(label, legendX + 14, legendY);
+        legendX += Math.min(90 + label.length * 2, 160);
+      });
+      nextY = legendY + 20;
+    } else {
+      nextY += 18;
+    }
+
+    doc.setTextColor(15, 23, 42);
+    autoTable(doc, {
+      startY: nextY + 12,
+      head: [["Metric", ...selectedRecords.map((district) => localizeDistrictName(t, district.district)), "Range"]],
+      didParseCell: (cellData) => {
+        if (cellData.section === "head" && cellData.column.index === 0) {
+          cellData.cell.styles.cellPadding = { top: 6, right: 6, bottom: 6, left: 18 };
+        }
+
+        if (cellData.section === "body" && cellData.column.index === 0) {
+          cellData.cell.styles.cellPadding = { top: 7, right: 6, bottom: 7, left: 20 };
+          cellData.cell.styles.fontStyle = "bold";
+          cellData.cell.styles.textColor = [15, 23, 42];
+        }
+      },
+      didDrawCell: (cellData) => {
+        if (cellData.section === "body" && cellData.column.index === 0) {
+          const metricKey = numericMetrics[cellData.row.index];
+          const fill = hexToRgb(metricColorMap[metricKey] || "#ea580c");
+          doc.setFillColor(...fill);
+          const x = cellData.cell.x + 8;
+          const y = cellData.cell.y + (cellData.cell.height / 2) - 3;
+          doc.roundedRect(x, y, 6, 6, 2, 2, "F");
+        }
+      },
+      body: numericMetrics.map((metric) => {
+        const metricValues = selectedRecords.map((district) => Number(district[metric] || 0));
+        const minValue = Math.min(...metricValues);
+        const maxValue = Math.max(...metricValues);
+        const rangeText = `${formatValue(metric, minValue)} - ${formatValue(metric, maxValue)}`;
+
+        return [
+          formatLabel(metric),
+          ...selectedRecords.map((district) => formatValue(metric, Number(district[metric] || 0))),
+          rangeText,
+        ];
+      }),
+      styles: {
+        font: "helvetica",
+        fontSize: 8.5,
+        cellPadding: { top: 6, right: 5, bottom: 6, left: 5 },
+        overflow: "linebreak",
+      },
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      margin: { left: 40, right: 40 },
+    });
+
+    nextY = doc.lastAutoTable.finalY + 18;
+
+    selectedRecords.forEach((district) => {
+      const rec = recommendations[district.district];
+      const schemes = rec?.recommended_schemes || [];
+      const issueDetails = rec?.issue_details || [];
+
+      ensureSpace(130);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(localizeDistrictName(t, district.district), 40, nextY);
+      nextY += 14;
+
+      ensureSpace(44);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(40, nextY - 2, pageWidth - 80, 34, 8, 8, "F");
+      doc.setTextColor(71, 85, 105);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(`State: ${district.state || "N/A"}`, 52, nextY + 10);
+      doc.text(`Priority score: ${Number(district.priority_score || 0).toFixed(2)}`, 52, nextY + 22);
+      doc.setTextColor(15, 23, 42);
+      nextY += 50;
+
+      ensureSpace(28);
+      doc.setFillColor(15, 23, 42);
+      doc.roundedRect(40, nextY - 12, 142, 18, 8, 8, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text("Scheme recommendations", 111, nextY + 0, { align: "center" });
+      doc.setTextColor(15, 23, 42);
+      nextY += 14;
+
+      if (schemes.length) {
+        schemes.forEach((scheme) => {
+          const explanation = (rec?.scheme_explanations?.[scheme] || ["Matched by district policy rules."]).join(" ");
+          const lines = doc.splitTextToSize(`${scheme}: ${explanation}`, pageWidth - 108);
+          const blockHeight = lines.length * 13 + 18;
+          ensureSpace(blockHeight + 8);
+          doc.setFillColor(255, 247, 237);
+          doc.roundedRect(48, nextY - 2, pageWidth - 96, blockHeight, 8, 8, "F");
+          doc.setFillColor(234, 88, 12);
+          doc.circle(60, nextY + 8, 3, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.text(scheme, 70, nextY + 10);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8.5);
+          doc.text(lines, 70, nextY + 22);
+          nextY += blockHeight + 4;
+        });
+      } else {
+        ensureSpace(30);
+        doc.setFont("helvetica", "normal");
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(48, nextY - 2, pageWidth - 96, 24, 8, 8, "F");
+        doc.text("No scheme recommendation found.", 60, nextY + 13);
+        nextY += 30;
+      }
+
+      ensureSpace(28);
+      doc.setFillColor(15, 23, 42);
+      doc.roundedRect(40, nextY - 10, 126, 18, 8, 8, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text("Trigger reasons", 103, nextY + 2, { align: "center" });
+      doc.setTextColor(15, 23, 42);
+      nextY += 14;
+
+      if (issueDetails.length) {
+        issueDetails.forEach((issue) => {
+          const lines = doc.splitTextToSize(issue.reason, pageWidth - 108);
+          const blockHeight = lines.length * 13 + 14;
+          ensureSpace(blockHeight + 8);
+          doc.setFillColor(255, 251, 235);
+          doc.roundedRect(48, nextY - 2, pageWidth - 96, blockHeight, 8, 8, "F");
+          doc.setFillColor(245, 158, 11);
+          doc.circle(60, nextY + 8, 3, "F");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8.5);
+          doc.text(lines, 70, nextY + 12);
+          nextY += blockHeight + 4;
+        });
+      } else {
+        ensureSpace(30);
+        doc.setFont("helvetica", "normal");
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(48, nextY - 2, pageWidth - 96, 24, 8, 8, "F");
+        doc.text("No major trigger rules fired.", 60, nextY + 13);
+        nextY += 30;
+      }
+
+      nextY += 18;
+    });
+
+    const commonSchemesPdf = commonSchemes || [];
+    const allSchemesPdf = allSchemes || [];
+    ensureSpace(160);
+
+    doc.setFillColor(15, 23, 42);
+    doc.roundedRect(40, nextY, pageWidth - 80, 24, 10, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Scheme summary", 54, nextY + 16);
+    nextY += 40;
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Common scheme recommendations", 40, nextY);
+    nextY += 12;
+
+    if (commonSchemesPdf.length) {
+      commonSchemesPdf.forEach((scheme) => {
+        const explanation = "Recommended across all selected districts.";
+        const lines = doc.splitTextToSize(`- ${scheme}: ${explanation}`, pageWidth - 90);
+        doc.text(lines, 48, nextY);
+        nextY += lines.length * 12 + 2;
+      });
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.text("No common scheme recommendation across all selected districts.", 48, nextY);
+      nextY += 14;
+    }
+
+    nextY += 10;
+    doc.setFont("helvetica", "bold");
+    doc.text("All recommended schemes", 40, nextY);
+    nextY += 12;
+
+    if (allSchemesPdf.length) {
+      allSchemesPdf.forEach((scheme) => {
+        const lines = doc.splitTextToSize(`- ${scheme}`, pageWidth - 90);
+        doc.text(lines, 48, nextY);
+        nextY += lines.length * 12 + 2;
+      });
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.text("No scheme recommendations available.", 48, nextY);
+      nextY += 14;
+    }
+
+    const totalPages = doc.getNumberOfPages();
+    for (let page = 1; page <= totalPages; page += 1) {
+      doc.setPage(page);
+      const pageWidthCurrent = doc.internal.pageSize.getWidth();
+      const pageHeightCurrent = doc.internal.pageSize.getHeight();
+
+      doc.setTextColor(253, 253, 254);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(30);
+      doc.text("BPIS", pageWidthCurrent / 2, pageHeightCurrent / 2, {
+        align: "center",
+        angle: 20,
+      });
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(
+        "CONFIDENTIAL - INTERNAL GOVERNMENT USE ONLY",
+        pageWidthCurrent / 2,
+        pageHeightCurrent - 14,
+        { align: "center" },
+      );
+
+      doc.setTextColor(148, 163, 184);
+      doc.setFontSize(8);
+      doc.text(`Page ${page} of ${totalPages}`, pageWidthCurrent - 40, pageHeightCurrent - 14, {
+        align: "right",
+      });
+    }
+
+    doc.save("BPIS_District_Comparison.pdf");
+  };
+
+  const numericMetrics = useMemo(() => {
+    const metricSet = new Set();
+
+    data.forEach((district) => {
+      Object.entries(district).forEach(([key, value]) => {
+        if (typeof value === "number" && Number.isFinite(value) && !excludedMetrics.has(key)) {
+          metricSet.add(key);
+        }
+      });
+    });
+
+    return Array.from(metricSet).sort((a, b) => {
+      const aIndex = preferredMetricOrder.indexOf(a);
+      const bIndex = preferredMetricOrder.indexOf(b);
+
+      if (aIndex !== -1 || bIndex !== -1) {
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      }
+
+      return a.localeCompare(b);
+    });
+  }, [data]);
+
+  const summaryStats = useMemo(() => {
+    if (!selectedRecords.length) {
+      return null;
+    }
+
+    const literacyValues = selectedRecords.map((district) => Number(district.literacy_rate || 0));
+    const priorityValues = selectedRecords.map((district) => Number(district.priority_score || 0));
+    const populationValues = selectedRecords.map((district) => Number(district.population || 0));
+
+    return {
+      avgLiteracy: literacyValues.reduce((sum, value) => sum + value, 0) / literacyValues.length,
+      avgPriority: priorityValues.reduce((sum, value) => sum + value, 0) / priorityValues.length,
+      maxPopulation: Math.max(...populationValues),
+      selectedCount: selectedRecords.length,
+    };
+  }, [selectedRecords]);
+
+  const commonSchemes = useMemo(() => {
+    if (!selectedDistricts.length || !Object.keys(recommendations).length) {
+      return [];
+    }
+
+    const recommendationLists = selectedDistricts.map(
+      (district) => recommendations[district]?.recommended_schemes || [],
+    );
+
+    if (!recommendationLists.length || recommendationLists.some((list) => list.length === 0)) {
+      return [];
+    }
+
+    return recommendationLists.reduce((shared, list) =>
+      shared.filter((scheme) => list.includes(scheme)),
+    );
+  }, [recommendations, selectedDistricts]);
+
+  const allSchemes = useMemo(() => {
+    const merged = new Set();
+    selectedDistricts.forEach((district) => {
+      (recommendations[district]?.recommended_schemes || []).forEach((scheme) => merged.add(scheme));
+    });
+    return Array.from(merged);
+  }, [recommendations, selectedDistricts]);
+
+  const removeDistrict = (districtName) => {
+    setSelectedDistricts((current) => current.filter((district) => district !== districtName));
+  };
+
+  const addDistrict = (districtName) => {
+    setSelectedDistricts((current) => {
+      if (current.includes(districtName)) {
+        return current;
+      }
+      return [...current, districtName];
+    });
+  };
+
+  if (!data.length) {
+    return null;
+  }
+
+  return (
+    <div className="gov-card" style={{ background: "white", marginBottom: "32px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", marginBottom: "20px" }}>
+        <div>
+          <h2 className="gov-heading" style={{ margin: 0, fontSize: "1.5rem" }}>
+            {t("districtCompareTitle")}
+          </h2>
+          <p style={{ margin: "8px 0 0 0", color: "#64748b" }}>
+            Select any number of districts and compare every numeric signal we have, along with district-wise scheme recommendations.
+          </p>
+        </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#ea580c", fontWeight: 700 }}>
+          <BarChart3 size={18} />
+          Multi-district compare
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
+        <button
+          type="button"
+          onClick={handleExportPdf}
+          disabled={!selectedRecords.length}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            border: "none",
+            borderRadius: "12px",
+            padding: "12px 16px",
+            background: selectedRecords.length ? "#ea580c" : "#cbd5e1",
+            color: "white",
+            fontWeight: 800,
+            cursor: selectedRecords.length ? "pointer" : "not-allowed",
+            boxShadow: selectedRecords.length ? "0 10px 24px rgba(234, 88, 12, 0.2)" : "none",
+          }}
+        >
+          <FileText size={18} />
+          {t("exportPDF") || "Export PDF"}
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "10px",
+          marginBottom: "18px",
+          padding: "14px 16px",
+          borderRadius: "14px",
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+        }}
+      >
+        {numericMetrics.slice(0, 6).map((metric) => (
+          <div
+            key={metric}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "0.88rem",
+              fontWeight: 700,
+              color: "#0f172a",
+            }}
+          >
+            <span
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "999px",
+                background: metricColorMap[metric] || "#ea580c",
+                display: "inline-block",
+              }}
+            />
+            {formatLabel(metric)}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: "18px" }}>
+        <DistrictPicker data={data} selectedDistricts={selectedDistricts} onAdd={addDistrict} t={t} />
+      </div>
+
+      {selectedDistricts.length ? (
+        <>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px" }}>
+            {selectedDistricts.map((districtName) => (
+              <div
+                key={districtName}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  background: "#fff7ed",
+                  border: "1px solid #fdba74",
+                  color: "#9a3412",
+                  fontWeight: 700,
+                }}
+              >
+                {localizeDistrictName(t, districtName)}
+                <button
+                  type="button"
+                  onClick={() => removeDistrict(districtName)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#9a3412",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: 0,
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSelectedDistricts([])}
+              style={{
+                border: "1px solid #cbd5e1",
+                background: "white",
+                color: "#0f172a",
+                padding: "8px 12px",
+                borderRadius: "999px",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              Clear all
+            </button>
+          </div>
+
+          {summaryStats && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "14px",
+                marginBottom: "24px",
+              }}
+            >
+              <div style={summaryCardStyle}>
+                <div style={summaryLabelStyle}>Districts selected</div>
+                <div style={summaryValueStyle}>{summaryStats.selectedCount}</div>
+              </div>
+              <div style={summaryCardStyle}>
+                <div style={summaryLabelStyle}>Average literacy</div>
+                <div style={summaryValueStyle}>{summaryStats.avgLiteracy.toFixed(2)}%</div>
+              </div>
+              <div style={summaryCardStyle}>
+                <div style={summaryLabelStyle}>Average priority score</div>
+                <div style={summaryValueStyle}>{summaryStats.avgPriority.toFixed(2)}</div>
+              </div>
+              <div style={summaryCardStyle}>
+                <div style={summaryLabelStyle}>Highest population</div>
+                <div style={summaryValueStyle}>{summaryStats.maxPopulation.toLocaleString("en-IN")}</div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ overflowX: "auto", marginBottom: "28px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", textAlign: "left" }}>
+                  <th style={tableHeaderStyle}>Metric</th>
+                  {selectedRecords.map((district) => (
+                    <th key={district.district} style={tableHeaderStyle}>
+                      {localizeDistrictName(t, district.district)}
+                    </th>
+                  ))}
+                  <th style={tableHeaderStyle}>Range</th>
+                </tr>
+              </thead>
+              <tbody>
+                {numericMetrics.map((metric) => {
+                  const metricValues = selectedRecords.map((district) => Number(district[metric] || 0));
+                  const minValue = Math.min(...metricValues);
+                  const maxValue = Math.max(...metricValues);
+                  const rangeText = `${formatValue(metric, minValue)} - ${formatValue(metric, maxValue)}`;
+
+                  return (
+                    <tr key={metric}>
+                      <td style={tableMetricStyle}>{formatLabel(metric)}</td>
+                      {selectedRecords.map((district) => {
+                        const value = Number(district[metric] || 0);
+                        const denominator = maxValue - minValue || 1;
+                        const percent = ((value - minValue) / denominator) * 100;
+
+                        return (
+                          <td key={`${metric}-${district.district}`} style={tableCellStyle}>
+                            <div style={{ fontWeight: 800, color: "#0f172a" }}>{formatValue(metric, value)}</div>
+                        <div style={barTrackStyle}>
+                          <div
+                            style={{
+                                  ...barFillStyle,
+                                  background: metricColorMap[metric] || "#ea580c",
+                                  width: `${Math.max(percent, 8)}%`,
+                                }}
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td style={tableCellStyle}>{rangeText}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+            {selectedRecords.map((district) => {
+              const rec = recommendations[district.district];
+              const schemes = rec?.recommended_schemes || [];
+              const issueDetails = rec?.issue_details || [];
+              const schemeExplanations = rec?.scheme_explanations || {};
+
+              return (
+                <div key={district.district} style={districtCardStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", marginBottom: "12px" }}>
+                    <div>
+                      <div style={districtNameStyle}>{localizeDistrictName(t, district.district)}</div>
+                      <div style={districtSubtleStyle}>{district.state}</div>
+                    </div>
+                    <div style={districtScoreStyle}>
+                      {Number(district.priority_score || 0).toFixed(2)}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gap: "8px", marginBottom: "16px" }}>
+                    <div><strong>Population:</strong> {Number(district.population || 0).toLocaleString("en-IN")}</div>
+                    <div><strong>Literacy:</strong> {Number(district.literacy_rate || 0).toFixed(2)}%</div>
+                    <div><strong>Gender ratio:</strong> {Number(district.gender_ratio || 0).toFixed(0)}</div>
+                  </div>
+
+                  <div style={sectionLabelStyle}>
+                    <Sparkles size={16} />
+                    Scheme recommendations
+                  </div>
+                  <div style={{ display: "grid", gap: "10px", marginBottom: "16px" }}>
+                    {schemes.length > 0 ? (
+                      schemes.map((scheme) => (
+                        <div key={scheme} style={schemeItemStyle}>
+                          <div style={{ fontWeight: 800, color: "#0f172a" }}>{scheme}</div>
+                          <div style={{ color: "#475569", lineHeight: 1.6 }}>
+                            {(schemeExplanations[scheme] || ["Matched by district policy rules."]).join(" ")}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={emptyStateStyle}>No scheme recommendation found.</div>
+                    )}
+                  </div>
+
+                  <div style={sectionLabelStyle}>
+                    <Sparkles size={16} />
+                    Trigger reasons
+                  </div>
+                  <div style={{ display: "grid", gap: "10px" }}>
+                    {issueDetails.length > 0 ? (
+                      issueDetails.map((issue) => (
+                        <div key={issue.issue} style={issueItemStyle}>
+                          <div style={{ fontWeight: 800, color: "#0f172a" }}>{issue.issue.replaceAll("_", " ")}</div>
+                          <div style={{ color: "#475569", lineHeight: 1.6 }}>{issue.reason}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={emptyStateStyle}>No major trigger rules fired.</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginBottom: "12px" }}>
+            <div style={overviewCardStyle}>
+              <div style={sectionLabelStyle}>
+                <BarChart3 size={16} />
+                Scheme overlap
+              </div>
+              {commonSchemes.length > 0 ? (
+                <div style={{ display: "grid", gap: "8px" }}>
+                  {commonSchemes.map((scheme) => (
+                    <div key={scheme} style={overlapTagStyle}>
+                      {scheme}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={emptyStateStyle}>No common scheme across all selected districts yet.</div>
+              )}
+            </div>
+
+            <div style={overviewCardStyle}>
+              <div style={sectionLabelStyle}>
+                <Sparkles size={16} />
+                All recommended schemes
+              </div>
+              {allSchemes.length > 0 ? (
+                <div style={{ display: "grid", gap: "8px" }}>
+                  {allSchemes.map((scheme) => (
+                    <div key={scheme} style={overlapTagStyle}>
+                      {scheme}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={emptyStateStyle}>No schemes recommended for the current selection.</div>
+              )}
+            </div>
+          </div>
+
+          {loadingRecommendations && (
+            <div style={{ marginTop: "14px", color: "#64748b" }}>
+              Loading scheme recommendations...
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={emptyStateContainerStyle}>
+          <h3 style={{ margin: "0 0 8px 0", color: "#0f172a" }}>Add one or more districts to begin</h3>
+          <p style={{ margin: 0, color: "#64748b" }}>
+            Search from the full district list, add as many districts as you want, and BPIS will compare every numeric metric plus scheme recommendations.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const summaryCardStyle = {
+  background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+  border: "1px solid #e2e8f0",
+  borderRadius: "18px",
+  padding: "18px",
+};
+
+const summaryLabelStyle = {
+  color: "#64748b",
+  fontSize: "0.85rem",
+  marginBottom: "8px",
+};
+
+const summaryValueStyle = {
+  color: "#0f172a",
+  fontSize: "1.6rem",
+  fontWeight: 900,
+};
+
+const tableHeaderStyle = {
+  padding: "14px",
+  borderBottom: "1px solid #e2e8f0",
+  color: "#334155",
+  fontWeight: 800,
+};
+
+const tableMetricStyle = {
+  padding: "14px",
+  borderBottom: "1px solid #eef2f7",
+  color: "#0f172a",
+  fontWeight: 800,
+  minWidth: "220px",
+};
+
+const tableCellStyle = {
+  padding: "14px",
+  borderBottom: "1px solid #eef2f7",
+  verticalAlign: "top",
+  minWidth: "180px",
+};
+
+const barTrackStyle = {
+  marginTop: "8px",
+  height: "8px",
+  width: "100%",
+  background: "#e2e8f0",
+  borderRadius: "999px",
+  overflow: "hidden",
+};
+
+const barFillStyle = {
+  height: "100%",
+  background: "linear-gradient(90deg, #ea580c 0%, #f97316 100%)",
+  borderRadius: "999px",
+};
+
+const districtCardStyle = {
+  borderRadius: "18px",
+  border: "1px solid #e2e8f0",
+  padding: "18px",
+  background: "#ffffff",
+  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.06)",
+};
+
+const districtNameStyle = {
+  fontSize: "1.15rem",
+  fontWeight: 900,
+  color: "#0f172a",
+};
+
+const districtSubtleStyle = {
+  color: "#64748b",
+  marginTop: "4px",
+  textTransform: "capitalize",
+};
+
+const districtScoreStyle = {
+  background: "#0f172a",
+  color: "white",
+  fontWeight: 900,
+  borderRadius: "999px",
+  padding: "8px 12px",
+  whiteSpace: "nowrap",
+};
+
+const sectionLabelStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  color: "#ea580c",
+  fontWeight: 800,
+  marginBottom: "10px",
+};
+
+const schemeItemStyle = {
+  borderRadius: "14px",
+  border: "1px solid #e2e8f0",
+  padding: "12px 14px",
+  background: "#f8fafc",
+};
+
+const issueItemStyle = {
+  borderRadius: "14px",
+  border: "1px solid #fde68a",
+  padding: "12px 14px",
+  background: "#fffbeb",
+};
+
+const emptyStateStyle = {
+  color: "#64748b",
+  borderRadius: "14px",
+  border: "1px dashed #cbd5e1",
+  padding: "14px",
+  background: "white",
+};
+
+const overviewCardStyle = {
+  borderRadius: "18px",
+  border: "1px solid #e2e8f0",
+  padding: "18px",
+  background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+};
+
+const overlapTagStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  borderRadius: "999px",
+  padding: "8px 12px",
+  background: "#fff7ed",
+  color: "#9a3412",
+  fontWeight: 800,
+  border: "1px solid #fdba74",
+};
+
+const emptyStateContainerStyle = {
+  padding: "40px",
+  border: "2px dashed #cbd5e1",
+  borderRadius: "18px",
+  textAlign: "center",
+  background: "#f8fafc",
 };
 
 export default DistrictCompare;

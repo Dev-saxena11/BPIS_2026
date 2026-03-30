@@ -4,7 +4,6 @@ import Charts from "../components/Charts";
 import PriorityTable from "../components/PriorityTable";
 import PopulationChart from "../components/PopulationChart";
 import Insights from "../components/Insights";
-import DistrictCompare from "../components/DistrictCompare";
 import { useLanguage } from '../contexts/LanguageContext';
 
 const Analytics = () => {
@@ -13,9 +12,6 @@ const Analytics = () => {
   return (
     <div style={{ padding: '30px', maxWidth: '1600px', margin: '0 auto' }}>
       <h1 className="gov-heading" style={{ fontSize: '2rem', marginBottom: '30px' }}>{t("pageAnalytics")}</h1>
-      
-      {/* Brand New Deep Dive Selection Section */}
-      <DistrictCompare />
 
       
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '24px', marginBottom: '24px' }}>

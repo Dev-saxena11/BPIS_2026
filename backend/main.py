@@ -30,16 +30,20 @@ except ImportError:  # Supports running as `uvicorn backend.main:app` from repo 
 
 try:
     from app.routes.ai_policy_routes import router as ai_policy_router
+    from app.routes.alerts_routes import router as alerts_router
     from app.routes.analytics_routes import router as analytics_router
     from app.routes.chatbot_routes import router as chatbot_router
+    from app.routes.notes_routes import router as notes_router
     from app.routes.district_routes import router as district_router
     from app.routes.scheme_routes import router as legacy_scheme_router
     from app.routes.scoring_routes import router as scoring_router
     from app.routes.simulation_routes import router as simulation_router
 except ImportError:  # Supports running as `uvicorn backend.main:app` from repo root.
     from backend.app.routes.ai_policy_routes import router as ai_policy_router
+    from backend.app.routes.alerts_routes import router as alerts_router
     from backend.app.routes.analytics_routes import router as analytics_router
     from backend.app.routes.chatbot_routes import router as chatbot_router
+    from backend.app.routes.notes_routes import router as notes_router
     from backend.app.routes.district_routes import router as district_router
     from backend.app.routes.scheme_routes import router as legacy_scheme_router
     from backend.app.routes.scoring_routes import router as scoring_router
@@ -121,6 +125,8 @@ app.include_router(analytics_router)
 app.include_router(scoring_router)
 app.include_router(legacy_scheme_router)
 app.include_router(ai_policy_router)
+app.include_router(alerts_router)
+app.include_router(notes_router)
 app.include_router(simulation_router)
 app.include_router(chatbot_router)
 

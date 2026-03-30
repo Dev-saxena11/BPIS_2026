@@ -184,6 +184,20 @@ def initialize_database() -> None:
             """
         )
 
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS district_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                district TEXT NOT NULL,
+                author_name TEXT NOT NULL,
+                comment TEXT NOT NULL,
+                tag TEXT NOT NULL,
+                action_item TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+
         cursor.executemany(
             """
             INSERT OR REPLACE INTO schemes (name, category, description, working_process)
