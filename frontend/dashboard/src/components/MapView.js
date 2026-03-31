@@ -153,24 +153,24 @@ function MapView() {
           .bindPopup(
             `
           <div style="font-size:14px">
-            <b>District:</b> ${districtLabel}<br/>
-            <b>State:</b> ${stateLabel}<br/>
-            <b>Population:</b> ${match.population?.toLocaleString('en-IN')}<br/>
-            <b>Literacy Rate:</b> ${match.literacy_rate?.toFixed(2)}%<br/>
-            <b>Priority Score:</b> ${match.priority_score?.toFixed(2)}<br/><br/>
+            <b>${t('district')}:</b> ${districtLabel}<br/>
+            <b>${t('state')}:</b> ${stateLabel}<br/>
+            <b>${t('population')}:</b> ${match.population?.toLocaleString('en-IN')}<br/>
+            <b>${t('literacyRateLabel')}:</b> ${match.literacy_rate?.toFixed(2)}%<br/>
+            <b>${t('priorityScore')}:</b> ${match.priority_score?.toFixed(2)}<br/><br/>
 
-            <b>Issues Detected:</b><br/>
+            <b>${t('Policy Insights')}:</b><br/>
             ${
               issues.length > 0
-                ? issues.map((i) => `• ${i.replace("_", " ")}`).join("<br>")
-                : "No major policy issues detected"
+                ? issues.map((i) => `• ${t(i)}`).join("<br>")
+                : t("Stable Socio-Economic Indicators: Routine Monitoring")
             }<br/><br/>
 
-            <b>Recommended Schemes:</b><br/>
+            <b>${t('Recommended Schemes')}:</b><br/>
             ${
               schemes.length > 0
-                ? schemes.map((s) => `• ${s}`).join("<br>")
-                : "No specific scheme recommendation required"
+                ? schemes.map((s) => `• ${t(s)}`).join("<br>")
+                : t("schemeRecommendationsEmpty")
             }
           </div>
         `,

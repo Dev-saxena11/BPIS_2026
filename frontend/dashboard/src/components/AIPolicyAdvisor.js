@@ -30,7 +30,7 @@ const AIPolicyAdvisor = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [increase, setIncrease] = useState(20);
-  const [simulation, setSimulation] = useState(null);
+  const [simulationData, setSimulationData] = useState(null);
 
   // ---------------------------------------------------------------
   // Safe district-name localizer.
@@ -72,20 +72,38 @@ const AIPolicyAdvisor = () => {
     return null;
   };
 
-  const handleSimulate = async () => {
+  const detectCategoryFromResponse = () => {
+    const queryText = `${query} ${result?.reason || ""} ${result?.action || ""}`.toLowerCase();
+
+    if (queryText.includes("health") || queryText.includes("hospital")) {
+      return "health";
+    }
+    if (queryText.includes("education") || queryText.includes("literacy")) {
+      return "education";
+    }
+
+    return "education";
+  };
+
+  const runSimulation = async () => {
+    const detectedCategory = detectCategoryFromResponse();
+    setSimulationData(null);
+
     try {
       const res = await axios.get(
-        `http://localhost:8000/simulate/education?increase=${increase}`
+        `${API_BASE}/simulate/${detectedCategory}?increase=${increase}&category=${detectedCategory}`
       );
-      setSimulation(res.data);
+      setSimulationData(res.data);
     } catch (err) {
       console.error("Simulation Error:", err);
+      alert("Simulation Engine offline. Please check connection.");
     }
   };
 
   const handleAsk = async () => {
     if (!query) return;
     setLoading(true);
+    setSimulationData(null);
     try {
       const res = await axios.post(`${API_BASE}/ai-policy-advisor`, { query });
       setResult(res.data);
@@ -96,16 +114,43 @@ const AIPolicyAdvisor = () => {
   };
 
   const chartData = (() => {
-    if (!result?.supporting_data || !simulation?.data) return [];
+    if (!result?.supporting_data || !simulationData?.data) return [];
     const before = result.supporting_data;
     const afterMap = {};
-    simulation.data.forEach((d) => { afterMap[d.district] = d.priority_score; });
+    simulationData.data.forEach((d) => { afterMap[d.district] = d.priority_score; });
     return before.map((b) => ({
       district: b.district,
       before: Math.round(b.priority_score),
       after: Math.round(afterMap[b.district] ?? b.priority_score),
     }));
   })();
+
+  const getPriorityBadgeStyle = (priorityScore) => {
+    if (priorityScore > 60) {
+      return {
+        background: "#fee2e2",
+        color: "#b91c1c",
+        border: "1px solid #fca5a5",
+        boxShadow: "0 6px 16px rgba(185, 28, 28, 0.10)",
+      };
+    }
+
+    if (priorityScore >= 40) {
+      return {
+        background: "#ffedd5",
+        color: "#c2410c",
+        border: "1px solid #fdba74",
+        boxShadow: "0 6px 16px rgba(194, 65, 12, 0.10)",
+      };
+    }
+
+    return {
+      background: "#dcfce7",
+      color: "#15803d",
+      border: "1px solid #86efac",
+      boxShadow: "0 6px 16px rgba(21, 128, 61, 0.10)",
+    };
+  };
 
   const sectionHeadingStyle = {
     fontSize: "0.78rem",
@@ -201,7 +246,7 @@ const AIPolicyAdvisor = () => {
           style={{ ...inputStyle, width: "110px" }}
         />
         <button
-          onClick={handleSimulate}
+          onClick={runSimulation}
           disabled={!result}
           style={result ? simulateButtonStyle : { ...simulateButtonStyle, ...disabledButtonStyle }}
           onMouseOver={(e) => {
@@ -233,6 +278,9 @@ const AIPolicyAdvisor = () => {
       {chartData.length > 0 && (
         <div style={{ marginTop: "30px" }}>
           <h3>{t('beforeVsAfter')}</h3>
+          <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: "0.92rem", fontWeight: 600 }}>
+            Grey = Current Status, Green = Predicted Impact
+          </p>
           <BarChart width={600} height={300} data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             {/* tickFormatter uses getDistrictLabel — data key 'district' stays unchanged */}
@@ -249,9 +297,9 @@ const AIPolicyAdvisor = () => {
                 />
               }
             />
-            <Legend formatter={(value) => ({ before: t('before'), after: t('after') }[value] || value)} />
-            <Bar dataKey="before" name={t('before')} fill="#8884d8" />
-            <Bar dataKey="after" name={t('after')} fill="#82ca9d" />
+            <Legend formatter={(value) => ({ before: "Grey = Current Status", after: "Green = Predicted Impact" }[value] || value)} />
+            <Bar dataKey="before" name="Grey = Current Status" fill="#94a3b8" animationDuration={1500} />
+            <Bar dataKey="after" name="Green = Predicted Impact" fill="#22c55e" animationDuration={1500} />
           </BarChart>
         </div>
       )}
@@ -267,17 +315,24 @@ const AIPolicyAdvisor = () => {
           <h3>{t('recommendedDistricts')}</h3>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <h4>{t('beforeSimulation')}</h4>
-            {result.recommended_districts.map((d, i) => (
+            {result.supporting_data.map((districtData, i) => (
               <div
-                key={i}
+                key={`${districtData.district}-${i}`}
                 style={{
-                  padding: "10px",
-                  background: i === 0 ? "#ffcccc" : "#e0e0e0",
-                  borderRadius: "5px",
+                  padding: "10px 12px",
+                  borderRadius: "999px",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  ...getPriorityBadgeStyle(Number(districtData.priority_score)),
                 }}
               >
                 {/* Display name is localized; the raw value is never mutated */}
-                {getDistrictLabel(d)}
+                <span>{getDistrictLabel(districtData.district)}</span>
+                <span style={{ opacity: 0.9 }}>
+                  {Number(districtData.priority_score).toFixed(2)}
+                </span>
               </div>
             ))}
           </div>
@@ -348,10 +403,13 @@ const AIPolicyAdvisor = () => {
       )}
 
       {/* Impact Analysis Chart */}
-      {simulation && (
+      {simulationData && (
         <div style={{ ...cardStyle, marginTop: "30px" }}>
           <h3 style={sectionHeadingStyle}>{t('impactAnalysis')}</h3>
-          <BarChart width={600} height={300} data={simulation.chart_data}>
+          <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: "0.92rem", fontWeight: 600 }}>
+            Grey = Current Status, Green = Predicted Impact
+          </p>
+          <BarChart width={600} height={300} data={simulationData.chart_data}>
             <CartesianGrid strokeDasharray="3 3" />
             {/* dataKey 'district' stays unchanged; label uses getDistrictLabel */}
             <XAxis dataKey="district" tickFormatter={getDistrictLabel} />
@@ -368,11 +426,11 @@ const AIPolicyAdvisor = () => {
               }
             />
             <Legend formatter={(value) => ({
-              before_score: t('currentPriority'),
-              after_score: t('postIntervention'),
+              before_score: "Grey = Current Status",
+              after_score: "Green = Predicted Impact",
             }[value] || value)} />
-            <Bar name={t('currentPriority')} dataKey="before_score" fill="#94a3b8" />
-            <Bar name={t('postIntervention')} dataKey="after_score" fill="#22c55e" />
+            <Bar name="Grey = Current Status" dataKey="before_score" fill="#94a3b8" animationDuration={1500} />
+            <Bar name="Green = Predicted Impact" dataKey="after_score" fill="#22c55e" animationDuration={1500} />
           </BarChart>
         </div>
       )}

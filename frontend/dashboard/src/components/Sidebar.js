@@ -1,25 +1,25 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Map, BarChart2, Cpu, Search } from "lucide-react";
+import { Map, BarChart2, Cpu, Search, Menu } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
-import logo from "../assets/logo.png"; // Assuming you have a logo image in assets folder
+import logo from "../assets/logo.png";
 
-const Sidebar = () => {
+const EXPANDED_WIDTH = 260;
+
+const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
   const location = useLocation();
   const { t } = useLanguage();
 
+  useEffect(() => {
+    if (typeof onWidthChange === "function") {
+      onWidthChange(isExpanded ? EXPANDED_WIDTH : 0);
+    }
+  }, [isExpanded, onWidthChange]);
+
   const navItems = [
     { path: "/", label: t("navOverview"), icon: <Map size={20} /> },
-    {
-      path: "/analytics",
-      label: t("navAnalytics"),
-      icon: <BarChart2 size={20} />,
-    },
-    {
-      path: "/policy-advisor",
-      label: t("navPolicyAI"),
-      icon: <Cpu size={20} />,
-    },
+    { path: "/analytics", label: t("navAnalytics"), icon: <BarChart2 size={20} /> },
+    { path: "/policy-advisor", label: t("navPolicyAI"), icon: <Cpu size={20} /> },
     {
       path: "/scheme-repository",
       label: t("navSchemeRepository"),
@@ -27,121 +27,178 @@ const Sidebar = () => {
     },
   ];
 
+  const sharedItemStyle = {
+    textDecoration: "none",
+    color: "#cbd5e1",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    transition: "all 0.2s ease",
+    borderLeft: "4px solid transparent",
+    whiteSpace: "nowrap",
+  };
+
   return (
-    <div
-      style={{
-        width: "260px",
-        height: "100vh",
-        backgroundColor: "#0f172a",
-        color: "white",
-        position: "fixed",
-        left: 0,
-        top: 0,
-        display: "flex",
-        flexDirection: "column",
-        boxShadow: "2px 0 10px rgba(0,0,0,0.1)",
-      }}
-    >
+    <>
+        <div
+          style={{
+            position: "fixed",
+            top: "16px",
+            left: "16px",
+            zIndex: 1005,
+            width: "52px",
+            height: "52px",
+          }}
+      >
+        <button
+          type="button"
+          aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+          title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+          onMouseEnter={() => setIsExpanded(true)}
+          style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "12px",
+            border: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            backgroundColor: "#0f172a",
+            color: "white",
+            //boxShadow: "0 8px 18px rgba(15, 23, 42, 0.28)",
+            boxShadow: "10px 0 15px -3px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <Menu size={18} />
+        </button>
+      </div>
+
       <div
+        onMouseLeave={() => setIsExpanded(false)}
         style={{
-          padding: "24px",
-          borderBottom: "1px solid #1e293b",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: `${EXPANDED_WIDTH}px`,
+          height: "100vh",
+          backgroundColor: "#0f172a",
+          color: "white",
           display: "flex",
-          alignItems: "center",
-          gap: "16px",
+          flexDirection: "column",
+          boxShadow: "2px 0 10px rgba(0,0,0,0.14)",
+          transform: isExpanded ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          zIndex: 1000,
+          overflow: "hidden",
+          willChange: "transform",
         }}
       >
         <div
           style={{
-            backgroundColor: "rgba(255, 255, 255, 0.9)",
-            padding: "6px",
-            borderRadius: "20px",
+            minHeight: "78px",
+            padding: "10px 15px 10px 60px",
+            borderBottom: "1px solid #1e293b",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+            gap: "14px",
           }}
         >
-          <img
-            src={logo}
-            alt="BPIS Logo"
-            style={{ width: "auto", height: "60px", objectFit: "contain" }}
-          />
-        </div>
-        <h2
-          style={{
-            margin: 0,
-            fontSize: "1.35rem",
-            fontWeight: 700,
-            letterSpacing: "0.5px",
-            lineHeight: 1.2,
-            color: "#ffffff",
-          }}
-        >
-          {t("brand")}
-        </h2>
-      </div>
+          <div
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.92)",
+              padding: "5px",
+              borderRadius: "18px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+              flexShrink: 0,
+            }}
+          >
+            <img
+              src={logo}
+              alt="BPIS Logo"
+              style={{ width: "auto", height: "42px", objectFit: "contain" }}
+            />
+          </div>
 
-      <nav
-        style={{
-          flex: 1,
-          padding: "20px 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px",
-        }}
-      >
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
+          <div style={{ minWidth: 0, maxWidth: "110px", paddingRight: "6px" }}>
+            <div
               style={{
-                textDecoration: "none",
-                color: isActive ? "white" : "#94a3b8",
-                padding: "12px 24px",
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                backgroundColor: isActive ? "#1e293b" : "transparent",
-                borderLeft: isActive
-                  ? "4px solid #3b82f6"
-                  : "4px solid transparent",
-                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                fontWeight: isActive ? 600 : 400,
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = "#1e293b";
-                  e.currentTarget.style.color = "white";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "#94a3b8";
-                }
+                margin: 0,
+                fontSize: "1.08rem",
+                fontWeight: 700,
+                letterSpacing: "0.4px",
+                lineHeight: 1.05,
+                color: "#ffffff",
+                whiteSpace: "normal",
+                wordBreak: "break-word",
               }}
             >
-              {item.icon}
-              <span style={{ fontSize: "1.05rem" }}>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+              {t("brand")}
+            </div>
+          </div>
+        </div>
 
-      <div
-        style={{
-          padding: "24px",
-          borderTop: "1px solid #1e293b",
-          fontSize: "0.8rem",
-          color: "#64748b",
-        }}
-      >
-        &copy; 2026 BPIS Systems
+        <nav
+          style={{
+            flex: 1,
+            padding: "20px 0",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                title={item.label}
+                aria-label={item.label}
+                style={{
+                  ...sharedItemStyle,
+                  padding: "12px 24px",
+                  backgroundColor: isActive ? "#1e293b" : "transparent",
+                  borderLeftColor: isActive ? " 4px solid #3b82f6" : " 4px solid transparent",
+                  color: isActive ? "#ffffff" : "#94a3b8",
+                  fontWeight: isActive ? 600 : 400,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor = "#1e293b";
+                    e.currentTarget.style.color = "#ffffff";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = "#94a3b8";
+                  }
+                }}
+              >
+                {item.icon}
+                <span style={{ fontSize: "1.03rem" }}>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div
+          style={{
+            padding: "24px",
+            borderTop: "1px solid #1e293b",
+            fontSize: "0.8rem",
+            color: "#64748b",
+            textAlign: "center",
+          }}
+        >
+          {t("footerCopyright")}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

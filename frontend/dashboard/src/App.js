@@ -9,10 +9,13 @@ import Overview from "./pages/Overview";
 import Analytics from "./pages/Analytics";
 import PolicyAI from "./pages/PolicyAI";
 import Login from "./pages/Login";
-import SchemeRepository from "./scomponents/SchemeRepository";
+import SchemeRepository from "./components/SchemeRepository";
+import "./Layout.css";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(0);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   return (
     <LanguageProvider>
@@ -20,14 +23,23 @@ function App() {
         <Login onLogin={() => setIsAuthenticated(true)} />
       ) : (
         <BrowserRouter>
-          <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+          <div className="dashboard-shell">
             {/* Fixed Sidebar */}
-            <Sidebar />
+            <Sidebar
+              isExpanded={isSidebarExpanded}
+              setIsExpanded={setIsSidebarExpanded}
+              onWidthChange={setSidebarWidth}
+            />
             
             {/* Main Content Area - dynamically pushed right by the sidebar width */}
-            <div style={{ flex: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column' }}>
+            <div
+              className="main-shell"
+              style={{
+                marginLeft: `${sidebarWidth}px`,
+              }}
+            >
               
-              <Navbar />
+              <Navbar isSidebarExpanded={isSidebarExpanded} />
               
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <Routes>
@@ -41,6 +53,7 @@ function App() {
                 </Routes>
               </div>
             </div>
+            {isSidebarExpanded && <div className="main-shell-blur" />}
             
             {/* Global Floating Components */}
             <ChatBot />

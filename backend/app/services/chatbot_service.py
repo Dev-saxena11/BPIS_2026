@@ -61,6 +61,8 @@ You are a professional BPIS Assistant. Answer directly. Do not use meta-talk lik
 
 Prioritize the 'Context from BPIS DB' provided in the prompt. If relevant data is present there, treat it as the absolute truth and do not contradict it.
 
+If specific data for a requested district or scheme is missing, do not give a generic answer. State clearly that the data is being fetched or is unavailable.
+
 Detect the user's language and respond in the exact same style if the user writes in English, Hindi, or Hinglish.
 
 Keep technical terms like 'Literacy Rate', 'Priority Score', and 'PM SHRI' in English (Latin script) even when the rest of the response is in Hindi or Hinglish.
@@ -95,6 +97,11 @@ LIGHT_REACTION_MESSAGES = {
     "thank you",
 }
 
+# Cache for scheme categories to avoid repeated database queries
+_scheme_categories_cache = None
+_scheme_categories_timestamp = None
+_cache_ttl = 600  # 10 minutes in seconds
+
 
 def is_light_reaction(message: str) -> bool:
     return normalize_text(message) in LIGHT_REACTION_MESSAGES
@@ -105,29 +112,15 @@ def format_db_context_for_fallback(db_context: str) -> str:
         return db_context
 
     lines = [line.strip() for line in db_context.splitlines() if line.strip()]
-    district_line = None
-    scheme_lines = []
+    cleaned_lines = [
+        line
+        for line in lines
+        if line not in {"District Context:", "Scheme Context:"}
+    ]
+    if cleaned_lines:
+        return "Here is the available data:\n" + "\n".join(cleaned_lines)
 
-    for line in lines:
-        if line.startswith("- "):
-            district_line = line[2:].strip()
-            continue
-        if line.endswith(":"):
-            continue
-        scheme_lines.append(line.lstrip("- ").strip())
-
-    if district_line:
-        return f"Here is the available data:\n{district_line}"
-
-    if scheme_lines:
-        return "Here is the available data:\n" + "\n".join(scheme_lines)
-
-    cleaned_lines = []
-    for line in lines:
-        if line.endswith(":"):
-            continue
-        cleaned_lines.append(line.lstrip("- ").strip())
-    return "\n".join(cleaned_lines).strip()
+    return "\n".join(lines)
 
 
 def build_fallback_response(
@@ -155,22 +148,32 @@ def build_fallback_response(
     )
 
     district_df = load_district_data()
-    district_name = match_district(user_query, district_df["district"].dropna().unique())
-    if district_name:
-        district_row = district_df[district_df["district"].str.lower() == district_name.lower()]
-        if not district_row.empty:
+    district_names = match_districts(user_query, district_df["district"].dropna().unique())
+    if district_names:
+        district_lines = []
+        for district_name in district_names:
+            district_row = district_df[district_df["district"].str.lower() == district_name.lower()]
+            if district_row.empty:
+                continue
+
             district_data = district_row.iloc[0]
             literacy = district_data.get("literacy_rate", "N/A")
             population = district_data.get("population", "N/A")
 
             if isinstance(literacy, (int, float)):
                 literacy = f"{literacy:.2f}%"
+            else:
+                literacy = format_metric(literacy)
 
+            district_lines.append(
+                f"- {str(district_name).title()}: Population {format_metric(population)}, Literacy Rate {literacy}"
+            )
+
+        if district_lines:
             fallback_response = (
-                f"Here is the summary for {str(district_name).title()}:\n"
-                f"- Population: {population}\n"
-                f"- Literacy: {literacy}\n\n"
-                "I could not connect to my AI core to provide further insights, but please refer to the dashboard for additional policy mapping."
+                "Here is the available district data:\n"
+                + "\n".join(district_lines)
+                + "\n\nI could not connect to my AI core to provide further insights, but please refer to the dashboard for additional policy mapping."
             )
 
     return fallback_response
@@ -277,24 +280,6 @@ def get_recent_user_context(history: list, limit: int = 3) -> str:
     return " ".join(reversed(recent_messages))
 
 
-def build_effective_query(message: str, history: list) -> str:
-    normalized_message = normalize_text(message)
-    short_follow_up_markers = {
-        "list any 5",
-        "list 5",
-        "any 5",
-        "show 5",
-        "name 5",
-        "give 5",
-        "tell 5",
-    }
-    if normalized_message in short_follow_up_markers:
-        recent_context = get_recent_user_context(history)
-        if recent_context:
-            return f"{recent_context} {message}".strip()
-    return message
-
-
 def get_total_scheme_count() -> int:
     with get_db_connection() as connection:
         row = connection.execute("SELECT COUNT(*) AS count FROM schemes").fetchone()
@@ -342,21 +327,6 @@ def get_scheme_list_context(query: str) -> str:
     return "Available scheme examples:\n" + "\n".join(f"- {name}" for name in scheme_names)
 
 
-def fetch_scheme_names(limit: int = 5) -> list[str]:
-    with get_db_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT name
-            FROM schemes
-            WHERE name IS NOT NULL AND TRIM(name) <> ''
-            ORDER BY name
-            LIMIT ?
-            """,
-            (limit,),
-        ).fetchall()
-    return [row["name"].strip() for row in rows if row["name"]]
-
-
 def get_project_context(query: str) -> str:
     normalized_query = normalize_text(query)
     if not normalized_query:
@@ -399,31 +369,6 @@ def get_project_context(query: str) -> str:
             deduped_contexts.append(item)
 
     return "\n".join(f"- {item}" for item in deduped_contexts)
-
-
-def get_scheme_list_context(query: str) -> str:
-    normalized_query = normalize_text(query)
-    scheme_list_markers = {
-        "list any 5",
-        "list 5",
-        "any 5",
-        "show 5",
-        "name 5",
-        "give 5",
-        "tell 5",
-        "list schemes",
-        "scheme names",
-        "schemes available",
-    }
-
-    if not any(marker in normalized_query for marker in scheme_list_markers):
-        return ""
-
-    scheme_names = fetch_scheme_names(limit=5)
-    if not scheme_names:
-        return ""
-
-    return "Available scheme examples:\n" + "\n".join(f"- {name}" for name in scheme_names)
 
 
 def get_current_context() -> tuple[str, str]:
@@ -586,15 +531,15 @@ def call_gemini(prompt: str) -> str:
     req = urllib.request.Request(gemini_api_url, data=data, headers={"Content-Type": "application/json"})
 
     last_error = None
-    for attempt in range(3):
+    for attempt in range(2):  # Reduced from 3 to 2 attempts
         try:
-            with urllib.request.urlopen(req, timeout=20.0) as response:
+            with urllib.request.urlopen(req, timeout=15.0) as response:  # Reduced from 20.0 to 15.0 seconds
                 result = json.loads(response.read().decode("utf-8"))
                 return result["candidates"][0]["content"]["parts"][0]["text"]
         except (HTTPError, URLError, TimeoutError, KeyError, IndexError, json.JSONDecodeError) as exc:
             last_error = exc
-            if attempt < 2:
-                time.sleep(attempt + 1)
+            if attempt < 1:
+                time.sleep(0.5)  # Reduced delay to 0.5 seconds instead of (attempt + 1)
                 continue
             raise RuntimeError(f"Gemini request failed after retries: {exc}") from exc
 
@@ -606,7 +551,8 @@ def sanitize_chatbot_text(text: str) -> str:
 
 
 def apply_static_response_delay() -> None:
-    time.sleep(STATIC_RESPONSE_DELAY_SECONDS)
+    # Delay removed for better performance - responses should be instant
+    pass
 
 
 def get_chatbot_reply(message: str, history: list | None = None, current_language: str = "en") -> dict:
@@ -663,6 +609,7 @@ def get_chatbot_reply(message: str, history: list | None = None, current_languag
         "- If Project Context is provided, use it to answer questions about pages, sections, navigation, and website components accurately.\n"
         "- Use Conversation Context and Effective Query to resolve short follow-up messages naturally.\n"
         "- If the user asks something unrelated to BPIS, districts, or schemes, still answer the question helpfully instead of redirecting back to BPIS.\n"
+        "- If specific data for a requested district or scheme is missing, do not give a generic answer. State clearly that the data is being fetched or is unavailable.\n"
         "- For light requests like jokes or casual chat, give a direct natural answer.\n"
         "- Match the user's language style: English, Hindi, or Hinglish.\n"
         "- Keep technical terms like Literacy Rate, Priority Score, and PM SHRI in English.\n"
@@ -709,22 +656,17 @@ def format_metric(value) -> str:
     return str(value)
 
 
-def match_district(query: str, districts) -> str | None:
-    normalized_query = normalize_text(query)
-    if not normalized_query:
-        return None
-
+def _get_district_pairs(districts) -> list[tuple[str, str]]:
     district_pairs = []
     for district in districts:
         district_name = str(district).strip()
         if not district_name:
             continue
         district_pairs.append((district_name, normalize_text(district_name)))
+    return district_pairs
 
-    for district_name, normalized_district in district_pairs:
-        if normalized_district in normalized_query or normalized_query in normalized_district:
-            return district_name
 
+def _get_query_candidates(normalized_query: str, district_pairs: list[tuple[str, str]]) -> list[str]:
     query_tokens = normalized_query.split()
     query_candidates = []
     max_district_words = max(
@@ -736,13 +678,38 @@ def match_district(query: str, districts) -> str | None:
             candidate = " ".join(query_tokens[start_index : start_index + size])
             if candidate:
                 query_candidates.append(candidate)
+    return query_candidates
+
+
+def match_districts(query: str, districts) -> list[str]:
+    normalized_query = normalize_text(query)
+    if not normalized_query:
+        return []
+
+    district_pairs = _get_district_pairs(districts)
+    if not district_pairs:
+        return []
+
+    matches = []
+    seen = set()
+
+    def add_match(district_name: str) -> None:
+        normalized_name = normalize_text(district_name)
+        if normalized_name not in seen:
+            seen.add(normalized_name)
+            matches.append(district_name)
+
+    for district_name, normalized_district in district_pairs:
+        if normalized_district in normalized_query:
+            add_match(district_name)
+
+    query_candidates = _get_query_candidates(normalized_query, district_pairs)
 
     if process is not None and fuzz is not None:
         normalized_to_original = {
             normalized_district: district_name
             for district_name, normalized_district in district_pairs
         }
-        best_match = None
         for candidate in query_candidates:
             candidate_match = process.extractOne(
                 candidate,
@@ -750,26 +717,38 @@ def match_district(query: str, districts) -> str | None:
                 scorer=fuzz.ratio,
                 score_cutoff=DISTRICT_MATCH_THRESHOLD,
             )
-            if candidate_match and (best_match is None or candidate_match[1] > best_match[1]):
-                best_match = candidate_match
-        if best_match:
-            return normalized_to_original[best_match[0]]
+            if candidate_match:
+                add_match(normalized_to_original[candidate_match[0]])
     else:
-        best_match_name = None
-        best_score = 0.0
         for candidate in query_candidates:
+            best_match_name = None
+            best_score = 0.0
             for district_name, normalized_district in district_pairs:
                 score = SequenceMatcher(None, candidate, normalized_district).ratio() * 100
                 if score > best_score:
                     best_score = score
                     best_match_name = district_name
-        if best_score >= DISTRICT_MATCH_THRESHOLD:
-            return best_match_name
+            if best_score >= DISTRICT_MATCH_THRESHOLD and best_match_name:
+                add_match(best_match_name)
 
-    return None
+    return matches
+
+
+def match_district(query: str, districts) -> str | None:
+    matches = match_districts(query, districts)
+    return matches[0] if matches else None
 
 
 def get_scheme_categories() -> list[str]:
+    """Get scheme categories with caching to avoid repeated database queries."""
+    global _scheme_categories_cache, _scheme_categories_timestamp
+    
+    # Check if cache is still valid
+    if _scheme_categories_cache is not None and _scheme_categories_timestamp is not None:
+        if time.time() - _scheme_categories_timestamp < _cache_ttl:
+            return _scheme_categories_cache
+    
+    # Query fresh data from database
     with get_db_connection() as connection:
         rows = connection.execute(
             """
@@ -780,7 +759,13 @@ def get_scheme_categories() -> list[str]:
             """
         ).fetchall()
 
-    return [row["category"].strip() for row in rows if row["category"]]
+    result = [row["category"].strip() for row in rows if row["category"]]
+    
+    # Update cache
+    _scheme_categories_cache = result
+    _scheme_categories_timestamp = time.time()
+    
+    return result
 
 
 def match_scheme_categories(query: str, categories: list[str]) -> list[str]:
@@ -795,11 +780,56 @@ def match_scheme_categories(query: str, categories: list[str]) -> list[str]:
     return matches
 
 
+def has_scheme_intent(query: str) -> bool:
+    normalized_query = normalize_text(query)
+    return "scheme" in normalized_query or "schemes" in normalized_query
+
+
+def fetch_top_scheme_categories(limit: int = 3) -> list[str]:
+    with get_db_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT category, COUNT(*) AS scheme_count
+            FROM schemes
+            WHERE category IS NOT NULL AND TRIM(category) <> ''
+            GROUP BY category
+            ORDER BY scheme_count DESC, category ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    return [row["category"].strip() for row in rows if row["category"]]
+
+
+def get_scheme_context_categories(query: str, categories: list[str], limit: int = 3) -> list[str]:
+    ordered_categories = []
+    seen = set()
+
+    for category in match_scheme_categories(query, categories):
+        normalized_category = normalize_text(category)
+        if normalized_category not in seen:
+            seen.add(normalized_category)
+            ordered_categories.append(category)
+        if len(ordered_categories) >= limit:
+            return ordered_categories
+
+    for category in fetch_top_scheme_categories(limit=limit):
+        normalized_category = normalize_text(category)
+        if normalized_category not in seen:
+            seen.add(normalized_category)
+            ordered_categories.append(category)
+        if len(ordered_categories) >= limit:
+            break
+
+    return ordered_categories
+
+
 def fetch_top_schemes_by_category(category: str, limit: int = 3) -> list[sqlite3.Row]:
     with get_db_connection() as connection:
         rows = connection.execute(
             """
-            SELECT name, description, working_process
+            SELECT name, description
             FROM schemes
             WHERE category = ?
             ORDER BY name
@@ -811,21 +841,30 @@ def fetch_top_schemes_by_category(category: str, limit: int = 3) -> list[sqlite3
     return rows
 
 
-def build_district_context(found_district: str, district_row) -> list[str]:
-    literacy = district_row.get("literacy_rate", "N/A")
-    population = district_row.get("population", "N/A")
+def build_district_context(found_districts: list[str], district_rows_by_name: dict[str, object]) -> list[str]:
+    lines = ["District Context:"]
 
-    if isinstance(literacy, (int, float)):
-        literacy = f"{literacy:.2f}%"
-    else:
-        literacy = format_metric(literacy)
+    for district_name in found_districts:
+        district_row = district_rows_by_name.get(normalize_text(district_name))
+        if district_row is None:
+            lines.append(
+                f"- {district_name.title()}: Data is unavailable right now or still being fetched."
+            )
+            continue
 
-    population = format_metric(population)
+        literacy = district_row.get("literacy_rate", "N/A")
+        population = district_row.get("population", "N/A")
 
-    return [
-        "District Context:",
-        f"- {found_district.title()}: Population {population}, Literacy Rate {literacy}",
-    ]
+        if isinstance(literacy, (int, float)):
+            literacy = f"{literacy:.2f}%"
+        else:
+            literacy = format_metric(literacy)
+
+        lines.append(
+            f"- {district_name.title()}: Population {format_metric(population)}, Literacy Rate {literacy}"
+        )
+
+    return lines
 
 
 def build_scheme_context(categories: list[str]) -> list[str]:
@@ -836,16 +875,17 @@ def build_scheme_context(categories: list[str]) -> list[str]:
         valid_schemes = [
             scheme
             for scheme in schemes
-            if scheme["name"] and scheme["description"] and scheme["working_process"]
+            if scheme["name"] and scheme["description"]
         ]
         if not valid_schemes:
+            lines.append(f"Category: {category}")
+            lines.append("Data Status: Scheme data is unavailable right now or still being fetched.")
             continue
 
         lines.append(f"Category: {category}")
         for index, scheme in enumerate(valid_schemes, start=1):
             lines.append(f"{index}. {scheme['name']}")
-            lines.append(f"Description: {scheme['description']}")
-            lines.append(f"Working Process: {scheme['working_process']}")
+            lines.append(f"Short Description: {scheme['description']}")
 
     return lines if len(lines) > 1 else []
 
@@ -853,20 +893,32 @@ def build_scheme_context(categories: list[str]) -> list[str]:
 def get_db_context(query: str) -> str:
     df = load_district_data()
     district_names = df["district"].dropna().unique()
-    found_district = match_district(query, district_names)
+    found_districts = match_districts(query, district_names)
 
     context_sections = []
 
-    if found_district:
-        district_matches = df[df["district"].str.lower() == found_district.lower()]
-        if not district_matches.empty:
-            context_sections.append(build_district_context(found_district, district_matches.iloc[0]))
+    if found_districts:
+        district_rows_by_name = {
+            normalize_text(row["district"]): row
+            for _, row in df.iterrows()
+            if row.get("district")
+        }
+        context_sections.append(build_district_context(found_districts, district_rows_by_name))
 
     categories = get_scheme_categories()
-    matched_categories = match_scheme_categories(query, categories)
-    scheme_context = build_scheme_context(matched_categories)
-    if scheme_context:
-        context_sections.append(scheme_context)
+    if has_scheme_intent(query):
+        selected_categories = get_scheme_context_categories(query, categories, limit=3)
+        if selected_categories:
+            scheme_context = build_scheme_context(selected_categories)
+            if scheme_context:
+                context_sections.append(scheme_context)
+        else:
+            context_sections.append(
+                [
+                    "Scheme Context:",
+                    "Data Status: Scheme data is unavailable right now or still being fetched.",
+                ]
+            )
 
     if not context_sections:
         return DEFAULT_CONTEXT_STRING

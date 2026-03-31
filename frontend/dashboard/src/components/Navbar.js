@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 
-function Navbar() {
+function Navbar({ isSidebarExpanded }) {
   const { language, toggleLanguage, t } = useLanguage();
 
   return (
@@ -12,9 +12,11 @@ function Navbar() {
       fontSize:"20px",
       display: "flex",
       justifyContent: "space-between",
-      alignItems: "center"
+      alignItems: "center",
+      position: "relative",
+      zIndex: 1
     }}>
-      <div>{t("appTitle")}</div>
+      <div style={{ paddingLeft: isSidebarExpanded ? "0px" : "70px", transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }}>{t("appTitle")}</div>
       
       <div 
   onClick={toggleLanguage}
