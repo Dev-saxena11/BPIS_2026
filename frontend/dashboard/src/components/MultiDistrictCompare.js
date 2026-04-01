@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Columns3, TrendingDown, TrendingUp } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { getPriorityRanking } from "../services/api";
@@ -11,6 +11,14 @@ const metricMeta = [
   { key: "population", label: "Population", format: (value) => Number(value).toLocaleString("en-IN"), color: "#7c3aed" },
   { key: "gender_ratio", label: "Gender Ratio", format: (value) => Number(value).toFixed(0), color: "#0f172a" },
 ];
+
+const metricLabelMapHi = {
+  literacy_rate: "साक्षरता दर",
+  priority_score: "प्राथमिकता स्कोर",
+  literacy_index: "साक्षरता सूचकांक",
+  population: "जनसंख्या",
+  gender_ratio: "लिंगानुपात",
+};
 
 function DistrictSlot({ value, onChange, placeholder }) {
   return (
@@ -35,8 +43,20 @@ function DistrictSlot({ value, onChange, placeholder }) {
 }
 
 export default function MultiDistrictCompare() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [districts, setDistricts] = useState([]);
+
+    const ui = {
+    intro: t("compareIntro") || "Compare up to three districts across literacy, population pressure, priority score, and demographic signals.",
+    badge: t("introBadge") || "Deep comparison",
+    districtSlot: (index) => (language === "hi" ? `जिला ${index + 1}` : `District ${index + 1}`),
+    priorityScore: t("priorityScore") || "Priority score",
+    metric: t("metric") || "Metric",
+    spread: t("range") || "Spread",
+    literacy: t("literacy") || "Literacy",
+    population: t("population") || "Population",
+    empty: t("noDistrictSelected") || "Select at least one district to start comparing.",
+  };
   const [selected, setSelected] = useState(["", "", ""]);
 
   useEffect(() => {
@@ -50,13 +70,20 @@ export default function MultiDistrictCompare() {
       .filter(Boolean)
       .map((name) => districts.find((district) => district.district?.toLowerCase() === name.toLowerCase()))
       .filter(Boolean);
-  }, [selected, districts]);
+  }, [selected, districts]);  const metricLabelKeys = {
+    literacy_rate: "literacy",
+    priority_score: "priorityScore",
+    literacy_index: "literacyIndex",
+    population: "population",
+    gender_ratio: "genderRatio",
+  };
 
   const metricRows = metricMeta.map((metric) => {
     const values = resolved.map((district) => Number(district?.[metric.key] || 0));
     const max = Math.max(...values, 1);
     return {
       ...metric,
+      displayLabel: t(metricLabelKeys[metric.key]) || metric.label,
       values,
       max,
     };
@@ -80,12 +107,12 @@ export default function MultiDistrictCompare() {
             {t("districtCompareTitle") || "Side-by-side comparison"}
           </h2>
           <p style={{ margin: "8px 0 0 0", color: "#64748b" }}>
-            Compare up to three districts across literacy, population pressure, priority score, and demographic signals.
+            {ui.intro}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#ea580c", fontWeight: 700 }}>
           <Columns3 size={18} />
-          Deep comparison
+          {ui.badge}
         </div>
       </div>
 
@@ -99,13 +126,12 @@ export default function MultiDistrictCompare() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px", marginBottom: "22px" }}>
         {selected.map((value, index) => (
-          <DistrictSlot
             key={`compare-slot-${index}`}
             value={value}
             onChange={(nextValue) => {
               setSelected((current) => current.map((item, itemIndex) => (itemIndex === index ? nextValue : item)));
             }}
-            placeholder={`District ${index + 1}`}
+            placeholder={ui.districtSlot(index)}
           />
         ))}
       </div>
@@ -122,7 +148,7 @@ export default function MultiDistrictCompare() {
                   {Number(district.priority_score || 0).toFixed(2)}
                 </div>
                 <div style={{ color: "#64748b", marginTop: "6px" }}>
-                  Priority score
+                  {ui.priorityScore}
                 </div>
               </div>
             ))}
@@ -132,20 +158,20 @@ export default function MultiDistrictCompare() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", textAlign: "left" }}>
-                  <th style={{ padding: "14px", borderBottom: "1px solid #e2e8f0" }}>Metric</th>
+                  <th style={{ padding: "14px", borderBottom: "1px solid #e2e8f0" }}>{ui.metric}</th>
                   {resolved.map((district) => (
                     <th key={district.district} style={{ padding: "14px", borderBottom: "1px solid #e2e8f0" }}>
                       {getLocalizedDistrictName(t, district.district)}
                     </th>
                   ))}
-                  <th style={{ padding: "14px", borderBottom: "1px solid #e2e8f0" }}>Spread</th>
+                  <th style={{ padding: "14px", borderBottom: "1px solid #e2e8f0" }}>{ui.spread}</th>
                 </tr>
               </thead>
               <tbody>
                 {metricRows.map((metric) => (
                   <tr key={metric.key}>
                     <td style={{ padding: "14px", borderBottom: "1px solid #eef2f7", fontWeight: 700, color: "#0f172a" }}>
-                      {metric.label}
+                      {metric.displayLabel}
                     </td>
                     {metric.values.map((value, valueIndex) => (
                       <td key={`${metric.key}-${valueIndex}`} style={{ padding: "14px", borderBottom: "1px solid #eef2f7" }}>
@@ -175,11 +201,11 @@ export default function MultiDistrictCompare() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                   <TrendingUp size={16} />
-                  Literacy: {Number(district.literacy_rate || 0).toFixed(1)}%
+                  {ui.literacy}: {Number(district.literacy_rate || 0).toFixed(1)}%
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <TrendingDown size={16} />
-                  Population: {Number(district.population || 0).toLocaleString("en-IN")}
+                  {ui.population}: {Number(district.population || 0).toLocaleString("en-IN")}
                 </div>
               </div>
             ))}
@@ -187,9 +213,10 @@ export default function MultiDistrictCompare() {
         </>
       ) : (
         <div style={{ padding: "28px", borderRadius: "18px", border: "1px dashed #cbd5e1", color: "#64748b" }}>
-          Select at least one district to start comparing.
+          {ui.empty}
         </div>
       )}
     </div>
   );
 }
+

@@ -4,7 +4,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useLanguage } from "../contexts/LanguageContext";
 import { getPriorityRanking, getSchemeRecommendation } from "../services/api";
-import { getLocalizedDistrictName as localizeDistrictName } from "../utils/districtLocalization";
+import { getLocalizedDistrictName as localizeDistrictName, getLocalizedStateName } from "../utils/districtLocalization";
 
 const metricLabelMap = {
   priority_score: "Priority Score",
@@ -13,6 +13,15 @@ const metricLabelMap = {
   male_population: "Male Population",
   female_population: "Female Population",
   gender_ratio: "Gender Ratio",
+};
+
+const metricLabelMapHi = {
+  priority_score: "प्राथमिकता स्कोर",
+  literacy_rate: "साक्षरता दर",
+  population: "जनसंख्या",
+  male_population: "पुरुष जनसंख्या",
+  female_population: "महिला जनसंख्या",
+  gender_ratio: "लिंगानुपात",
 };
 
 const preferredMetricOrder = [
@@ -27,6 +36,7 @@ const preferredMetricOrder = [
 const excludedMetrics = new Set([
   "norm_pop",
   "norm_illit",
+  "illiteracy_rate",
   "literate_population",
   "population_weight",
   "literacy_index",
@@ -41,8 +51,17 @@ const metricColorMap = {
   gender_ratio: "#4f46e5",
 };
 
-const formatLabel = (key) =>
-  metricLabelMap[key] ||
+const metricLabelKeyMap = {
+  priority_score: "priorityScore",
+  literacy_rate: "literacyRate",
+  population: "population",
+  male_population: "malePopulation",
+  female_population: "femalePopulation",
+  gender_ratio: "genderRatio",
+};
+
+const formatLabel = (key, language = "en") =>
+  (language === "hi" ? metricLabelMapHi[key] : metricLabelMap[key]) ||
   key
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -76,7 +95,7 @@ const hexToRgb = (hex) => {
   ];
 };
 
-function DistrictPicker({ data, selectedDistricts, onAdd, t }) {
+function DistrictPicker({ data, selectedDistricts, onAdd, t, language }) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -203,7 +222,7 @@ function DistrictPicker({ data, selectedDistricts, onAdd, t }) {
                 }}
               >
                 <span style={{ fontWeight: 600 }}>{localizeDistrictName(t, district.district)}</span>
-                <span style={{ color: "#64748b", fontSize: "0.85rem" }}>{district.state}</span>
+                <span style={{ color: "#64748b", fontSize: "0.85rem" }}>{getLocalizedStateName(t, district.state, language)}</span>
               </button>
             ))
           ) : (
@@ -218,7 +237,7 @@ function DistrictPicker({ data, selectedDistricts, onAdd, t }) {
 }
 
 function DistrictCompare() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [data, setData] = useState([]);
   const [selectedDistricts, setSelectedDistricts] = useState([]);
   const [recommendations, setRecommendations] = useState({});
@@ -284,6 +303,48 @@ function DistrictCompare() {
     [data, selectedDistricts],
   );
 
+  const getMetricLabel = (metric) => t(metricLabelKeyMap[metric]) || formatLabel(metric);
+
+  const ui = {
+    multiCompare: t("introBadge") || "Multi-district compare",
+    compareIntro: t("compareIntro") || "Select any number of districts and compare every numeric signal we have, along with district-wise scheme recommendations.",
+    selectedDistricts: t("selectedDistricts") || "Selected districts:",
+    clearAll: t("clearAll") || "Clear all",
+    districtsSelected: t("districtsSelected") || "Districts selected",
+    averageLiteracy: t("averageLiteracy") || "Average literacy",
+    averagePriority: t("averagePriority") || "Average priority score",
+    highestPopulation: t("highestPopulation") || "Highest population",
+    metric: t("metric") || "Metric",
+    range: t("range") || "Range",
+    state: t("state") || "State",
+    population: t("population") || "Population",
+    literacy: t("literacy") || "Literacy",
+    priorityScore: t("priorityScore") || "Priority score",
+    genderRatio: t("genderRatio") || "Gender ratio",
+    schemeRecommendations: t("schemeRecommendations") || "Scheme recommendations",
+    triggerReasons: t("triggerReasons") || "Trigger reasons",
+    schemeOverlap: t("schemeOverlap") || "Scheme overlap",
+    allRecommendedSchemes: t("allRecommendedSchemes") || "All recommended schemes",
+    loading: t("loadingSchemeRecommendations") || "Loading scheme recommendations...",
+    addDistricts: t("addDistricts") || "Add one or more districts to begin",
+    addDistrictsDesc:
+      t("addDistrictsDesc") ||
+      "Search from the full district list, add as many districts as you want, and BPIS will compare every numeric metric plus scheme recommendations.",
+    noCommonYet: t("noCommonYet") || "No common scheme across all selected districts yet.",
+    noSchemes: t("noSchemesRecommended") || "No schemes recommended for the current selection.",
+    noScheme: t("noSchemeRecommendation") || "No scheme recommendation found.",
+    noTrigger: t("noTriggerRules") || "No major trigger rules fired.",
+    introBadge: t("introBadge") || "Multi-district compare",
+    metricLegend: t("metricLegend") || "Metric color legend:",
+    ruleMatched: t("ruleMatched") || "Matched by district policy rules.",
+    recommendedAcross: t("recommendedAcross") || "Recommended across all selected districts.",
+    schemeSummary: t("schemeSummary") || "Scheme summary",
+    commonSchemes: t("commonSchemes") || "Common scheme recommendations",
+    commonExplanation: t("commonExplanation") || "Recommended across all selected districts.",
+    noCommon: t("noCommonScheme") || "No common scheme recommendation across all selected districts.",
+  };
+  const labels = ui;
+
   const handleExportPdf = () => {
     if (!selectedRecords.length) {
       return;
@@ -337,7 +398,7 @@ function DistrictCompare() {
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("Selected districts:", 40, nextY);
+      doc.text(ui.selectedDistricts || "Selected districts:", 40, nextY);
     doc.setFont("helvetica", "normal");
     doc.text(selectedDistrictLabels, 40, nextY + 16, {
       maxWidth: pageWidth - 80,
@@ -348,9 +409,9 @@ function DistrictCompare() {
     const summaryCardsY = nextY;
     const summaryCardWidth = (pageWidth - 100) / 3;
     const summaryCards = [
-      { label: "Districts", value: String(selectedRecords.length), fill: [15, 23, 42] },
+      { label: ui.districtsSelected, value: String(selectedRecords.length), fill: [15, 23, 42] },
       {
-        label: "Avg literacy",
+        label: ui.averageLiteracy,
         value: `${(
           selectedRecords.reduce((sum, district) => sum + Number(district.literacy_rate || 0), 0) /
           selectedRecords.length
@@ -358,7 +419,7 @@ function DistrictCompare() {
         fill: [37, 99, 235],
       },
       {
-        label: "Avg priority",
+        label: ui.averagePriority,
         value: `${(
           selectedRecords.reduce((sum, district) => sum + Number(district.priority_score || 0), 0) /
           selectedRecords.length
@@ -409,10 +470,10 @@ function DistrictCompare() {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
-      doc.text("Metric color legend:", legendX, legendY - 4);
+      doc.text(labels.metricLegend, legendX, legendY - 4);
       legendX += 110;
       legendItems.forEach((metric) => {
-        const label = formatLabel(metric);
+        const label = getMetricLabel(metric);
         const fill = metricColorMap[metric] || "#ea580c";
         doc.setFillColor(fill);
         doc.roundedRect(legendX, legendY - 8, 10, 10, 3, 3, "F");
@@ -429,7 +490,7 @@ function DistrictCompare() {
     doc.setTextColor(15, 23, 42);
     autoTable(doc, {
       startY: nextY + 12,
-      head: [["Metric", ...selectedRecords.map((district) => localizeDistrictName(t, district.district)), "Range"]],
+      head: [[ui.metric, ...selectedRecords.map((district) => localizeDistrictName(t, district.district)), ui.range]],
       didParseCell: (cellData) => {
         if (cellData.section === "head" && cellData.column.index === 0) {
           cellData.cell.styles.cellPadding = { top: 6, right: 6, bottom: 6, left: 18 };
@@ -458,7 +519,7 @@ function DistrictCompare() {
         const rangeText = `${formatValue(metric, minValue)} - ${formatValue(metric, maxValue)}`;
 
         return [
-          formatLabel(metric),
+          getMetricLabel(metric),
           ...selectedRecords.map((district) => formatValue(metric, Number(district[metric] || 0))),
           rangeText,
         ];
@@ -499,8 +560,8 @@ function DistrictCompare() {
       doc.setTextColor(71, 85, 105);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
-      doc.text(`State: ${district.state || "N/A"}`, 52, nextY + 10);
-      doc.text(`Priority score: ${Number(district.priority_score || 0).toFixed(2)}`, 52, nextY + 22);
+      doc.text(`${ui.state}: ${getLocalizedStateName(t, district.state, language) || "N/A"}`, 52, nextY + 10);
+      doc.text(`${ui.priorityScore}: ${Number(district.priority_score || 0).toFixed(2)}`, 52, nextY + 22);
       doc.setTextColor(15, 23, 42);
       nextY += 50;
 
@@ -510,13 +571,13 @@ function DistrictCompare() {
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
-      doc.text("Scheme recommendations", 111, nextY + 0, { align: "center" });
+      doc.text(labels.schemeRecommendations || "Scheme recommendations", 111, nextY + 0, { align: "center" });
       doc.setTextColor(15, 23, 42);
       nextY += 14;
 
       if (schemes.length) {
         schemes.forEach((scheme) => {
-          const explanation = (rec?.scheme_explanations?.[scheme] || ["Matched by district policy rules."]).join(" ");
+          const explanation = (rec?.scheme_explanations?.[scheme] || [ui.ruleMatched]).join(" ");
           const lines = doc.splitTextToSize(`${scheme}: ${explanation}`, pageWidth - 108);
           const blockHeight = lines.length * 13 + 18;
           ensureSpace(blockHeight + 8);
@@ -536,8 +597,11 @@ function DistrictCompare() {
         ensureSpace(30);
         doc.setFont("helvetica", "normal");
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(48, nextY - 2, pageWidth - 96, 24, 8, 8, "F");
-        doc.text("No scheme recommendation found.", 60, nextY + 13);
+        doc.text(
+          labels.noScheme || (language === "hi" ? "कोई योजना अनुशंसा नहीं मिली।" : "No scheme recommendation found."),
+          60,
+          nextY + 13,
+        );
         nextY += 30;
       }
 
@@ -547,7 +611,7 @@ function DistrictCompare() {
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
-      doc.text("Trigger reasons", 103, nextY + 2, { align: "center" });
+      doc.text(labels.triggerReasons || (language === "hi" ? "कोई प्रमुख ट्रिगर नियम सक्रिय नहीं हुए।" : "Trigger reasons"), 103, nextY + 2, { align: "center" });
       doc.setTextColor(15, 23, 42);
       nextY += 14;
 
@@ -570,7 +634,7 @@ function DistrictCompare() {
         doc.setFont("helvetica", "normal");
         doc.setFillColor(248, 250, 252);
         doc.roundedRect(48, nextY - 2, pageWidth - 96, 24, 8, 8, "F");
-        doc.text("No major trigger rules fired.", 60, nextY + 13);
+        doc.text(labels.noTrigger || (language === "hi" ? "कोई प्रमुख ट्रिगर नियम सक्रिय नहीं हुए।" : "No major trigger rules fired."), 60, nextY + 13);
         nextY += 30;
       }
 
@@ -586,31 +650,33 @@ function DistrictCompare() {
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("Scheme summary", 54, nextY + 16);
+    doc.text(labels.schemeSummary || (language === "hi" ? "योजना सारांश" : "Scheme summary"), 54, nextY + 16);
     nextY += 40;
 
     doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("Common scheme recommendations", 40, nextY);
+    doc.text(labels.commonSchemes || (language === "hi" ? "सामान्य योजनाएँ" : "Common schemes"), 54, nextY + 16);
     nextY += 12;
 
     if (commonSchemesPdf.length) {
       commonSchemesPdf.forEach((scheme) => {
-        const explanation = "Recommended across all selected districts.";
+        const explanation = labels.commonExplanation || (language === "hi" ? "जिला नीति नियमों से मेल खाता है।" : "Matched by district policy rules.");
         const lines = doc.splitTextToSize(`- ${scheme}: ${explanation}`, pageWidth - 90);
         doc.text(lines, 48, nextY);
         nextY += lines.length * 12 + 2;
       });
     } else {
       doc.setFont("helvetica", "normal");
-      doc.text("No common scheme recommendation across all selected districts.", 48, nextY);
+      doc.text(language === "hi" ? "कोई समान योजना नहीं मिली।" : "No common schemes found.", 48, nextY);
       nextY += 14;
     }
 
     nextY += 10;
+    doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
-    doc.text("All recommended schemes", 40, nextY);
+    doc.setFontSize(11);
+    doc.text(labels.allSchemes || (language === "hi" ? "सभी अनुशंसित योजनाएँ" : "All recommended schemes"), 54, nextY + 16);
     nextY += 12;
 
     if (allSchemesPdf.length) {
@@ -621,7 +687,7 @@ function DistrictCompare() {
       });
     } else {
       doc.setFont("helvetica", "normal");
-      doc.text("No scheme recommendations available.", 48, nextY);
+      doc.text(labels.noSchemes || (language === "hi" ? "चयनित जिले के लिए कोई योजना अनुशंसित नहीं है।" : "No schemes recommended for the current selection."), 48, nextY);
       nextY += 14;
     }
 
@@ -642,12 +708,7 @@ function DistrictCompare() {
       doc.setTextColor(100, 116, 139);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text(
-        "CONFIDENTIAL - INTERNAL GOVERNMENT USE ONLY",
-        pageWidthCurrent / 2,
-        pageHeightCurrent - 14,
-        { align: "center" },
-      );
+      doc.text(t("confidentialFooter") || "Confidential - For Internal Govt Use Only", pageWidthCurrent / 2, pageHeightCurrent - 14, { align: "center" });
 
       doc.setTextColor(148, 163, 184);
       doc.setFontSize(8);
@@ -750,12 +811,12 @@ function DistrictCompare() {
             {t("districtCompareTitle")}
           </h2>
           <p style={{ margin: "8px 0 0 0", color: "#64748b" }}>
-            Select any number of districts and compare every numeric signal we have, along with district-wise scheme recommendations.
+            {ui.compareIntro}
           </p>
         </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#ea580c", fontWeight: 700 }}>
           <BarChart3 size={18} />
-          Multi-district compare
+          {labels.multiCompare}
         </div>
       </div>
 
@@ -816,7 +877,7 @@ function DistrictCompare() {
                 display: "inline-block",
               }}
             />
-            {formatLabel(metric)}
+            {getMetricLabel(metric)}
           </div>
         ))}
       </div>
@@ -874,7 +935,7 @@ function DistrictCompare() {
                 fontWeight: 700,
               }}
             >
-              Clear all
+              {ui.clearAll}
             </button>
           </div>
 
@@ -888,19 +949,19 @@ function DistrictCompare() {
               }}
             >
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Districts selected</div>
+                <div style={summaryLabelStyle}>{ui.districtsSelected}</div>
                 <div style={summaryValueStyle}>{summaryStats.selectedCount}</div>
               </div>
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Average literacy</div>
+                <div style={summaryLabelStyle}>{ui.averageLiteracy}</div>
                 <div style={summaryValueStyle}>{summaryStats.avgLiteracy.toFixed(2)}%</div>
               </div>
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Average priority score</div>
+                <div style={summaryLabelStyle}>{ui.averagePriority}</div>
                 <div style={summaryValueStyle}>{summaryStats.avgPriority.toFixed(2)}</div>
               </div>
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Highest population</div>
+                <div style={summaryLabelStyle}>{ui.highestPopulation}</div>
                 <div style={summaryValueStyle}>{summaryStats.maxPopulation.toLocaleString("en-IN")}</div>
               </div>
             </div>
@@ -910,13 +971,13 @@ function DistrictCompare() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", textAlign: "left" }}>
-                  <th style={tableHeaderStyle}>Metric</th>
+                  <th style={tableHeaderStyle}>{ui.metric}</th>
                   {selectedRecords.map((district) => (
                     <th key={district.district} style={tableHeaderStyle}>
                       {localizeDistrictName(t, district.district)}
                     </th>
                   ))}
-                  <th style={tableHeaderStyle}>Range</th>
+                  <th style={tableHeaderStyle}>{ui.range}</th>
                 </tr>
               </thead>
               <tbody>
@@ -928,7 +989,7 @@ function DistrictCompare() {
 
                   return (
                     <tr key={metric}>
-                      <td style={tableMetricStyle}>{formatLabel(metric)}</td>
+                      <td style={tableMetricStyle}>{getMetricLabel(metric)}</td>
                       {selectedRecords.map((district) => {
                         const value = Number(district[metric] || 0);
                         const denominator = maxValue - minValue || 1;
@@ -966,10 +1027,10 @@ function DistrictCompare() {
 
               return (
                 <div key={district.district} style={districtCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", marginBottom: "12px" }}>
-                    <div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", marginBottom: "12px" }}>
+                  <div>
                       <div style={districtNameStyle}>{localizeDistrictName(t, district.district)}</div>
-                      <div style={districtSubtleStyle}>{district.state}</div>
+                      <div style={districtSubtleStyle}>{getLocalizedStateName(t, district.state, language)}</div>
                     </div>
                     <div style={districtScoreStyle}>
                       {Number(district.priority_score || 0).toFixed(2)}
@@ -977,14 +1038,14 @@ function DistrictCompare() {
                   </div>
 
                   <div style={{ display: "grid", gap: "8px", marginBottom: "16px" }}>
-                    <div><strong>Population:</strong> {Number(district.population || 0).toLocaleString("en-IN")}</div>
-                    <div><strong>Literacy:</strong> {Number(district.literacy_rate || 0).toFixed(2)}%</div>
-                    <div><strong>Gender ratio:</strong> {Number(district.gender_ratio || 0).toFixed(0)}</div>
+                    <div><strong>{ui.population}:</strong> {Number(district.population || 0).toLocaleString("en-IN")}</div>
+                    <div><strong>{ui.literacy}:</strong> {Number(district.literacy_rate || 0).toFixed(2)}%</div>
+                    <div><strong>{ui.genderRatio}:</strong> {Number(district.gender_ratio || 0).toFixed(0)}</div>
                   </div>
 
                   <div style={sectionLabelStyle}>
                     <Sparkles size={16} />
-                    Scheme recommendations
+                    {labels.schemeRecommendations}
                   </div>
                   <div style={{ display: "grid", gap: "10px", marginBottom: "16px" }}>
                     {schemes.length > 0 ? (
@@ -992,18 +1053,18 @@ function DistrictCompare() {
                         <div key={scheme} style={schemeItemStyle}>
                           <div style={{ fontWeight: 800, color: "#0f172a" }}>{scheme}</div>
                           <div style={{ color: "#475569", lineHeight: 1.6 }}>
-                            {(schemeExplanations[scheme] || ["Matched by district policy rules."]).join(" ")}
+                            {(schemeExplanations[scheme] || [ui.ruleMatched]).join(" ")}
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div style={emptyStateStyle}>No scheme recommendation found.</div>
+      <div style={emptyStateStyle}>{labels.noScheme || (language === "hi" ? "कोई योजना अनुशंसित नहीं है।" : "No scheme recommendation found.")}</div>
                     )}
                   </div>
 
                   <div style={sectionLabelStyle}>
                     <Sparkles size={16} />
-                    Trigger reasons
+                    {labels.triggerReasons}
                   </div>
                   <div style={{ display: "grid", gap: "10px" }}>
                     {issueDetails.length > 0 ? (
@@ -1014,7 +1075,7 @@ function DistrictCompare() {
                         </div>
                       ))
                     ) : (
-                      <div style={emptyStateStyle}>No major trigger rules fired.</div>
+      <div style={emptyStateStyle}>{labels.noSchemes || (language === "hi" ? "चयनित जिले के लिए कोई योजना अनुशंसित नहीं है।" : "No schemes recommended for the current selection.")}</div>
                     )}
                   </div>
                 </div>
@@ -1026,7 +1087,7 @@ function DistrictCompare() {
             <div style={overviewCardStyle}>
               <div style={sectionLabelStyle}>
                 <BarChart3 size={16} />
-                Scheme overlap
+                {labels.schemeOverlap}
               </div>
               {commonSchemes.length > 0 ? (
                 <div style={{ display: "grid", gap: "8px" }}>
@@ -1037,14 +1098,14 @@ function DistrictCompare() {
                   ))}
                 </div>
               ) : (
-                <div style={emptyStateStyle}>No common scheme across all selected districts yet.</div>
+                <div style={emptyStateStyle}>{labels.noCommonYet}</div>
               )}
             </div>
 
             <div style={overviewCardStyle}>
               <div style={sectionLabelStyle}>
                 <Sparkles size={16} />
-                All recommended schemes
+                {labels.allRecommendedSchemes}
               </div>
               {allSchemes.length > 0 ? (
                 <div style={{ display: "grid", gap: "8px" }}>
@@ -1055,20 +1116,20 @@ function DistrictCompare() {
                   ))}
                 </div>
               ) : (
-                <div style={emptyStateStyle}>No schemes recommended for the current selection.</div>
+                <div style={emptyStateStyle}>{labels.noSchemes}</div>
               )}
             </div>
           </div>
 
           {loadingRecommendations && (
             <div style={{ marginTop: "14px", color: "#64748b" }}>
-              Loading scheme recommendations...
+              {labels.loading}
             </div>
           )}
         </>
       ) : (
         <div style={emptyStateContainerStyle}>
-          <h3 style={{ margin: "0 0 8px 0", color: "#0f172a" }}>Add one or more districts to begin</h3>
+          <h3 style={{ margin: "0 0 8px 0", color: "#0f172a" }}>{labels.addDistricts}</h3>
           <p style={{ margin: 0, color: "#64748b" }}>
             Search from the full district list, add as many districts as you want, and BPIS will compare every numeric metric plus scheme recommendations.
           </p>
@@ -1221,3 +1282,6 @@ const emptyStateContainerStyle = {
 };
 
 export default DistrictCompare;
+
+
+

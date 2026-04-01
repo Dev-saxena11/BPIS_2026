@@ -12,7 +12,52 @@ const defaultForm = {
 };
 
 export default function DistrictNotesPanel() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const ui = language === "hi"
+    ? {
+        title: "नोट्स और सहयोग",
+        subtitle: "किसी जिले में टिप्पणियाँ, टैग और कार्य-आइटम जोड़ें ताकि टीमें एक साझा रिकॉर्ड से काम कर सकें।",
+        sharedLog: "साझा जिला लॉग",
+        district: "जिला",
+        author: "लेखक",
+        tag: "टैग",
+        actionItem: "कार्य-आइटम",
+        comment: "टिप्पणी",
+        save: "नोट सहेजें",
+        selectedDistrict: "चयनित जिला",
+        loading: "लोड हो रहा है...",
+        chooseDistrict: "पहले एक जिला चुनें।",
+        noteSaved: "नोट सहेजा गया।",
+        saveError: "नोट सहेजा नहीं जा सका।",
+        typeDistrict: "जिले का नाम लिखें",
+        officerName: "अधिकारी का नाम",
+        nextStep: "टीम के लिए अगला कदम",
+        writeNote: "जिले के बारे में एक छोटा नोट लिखें...",
+        noNotes: "इस जिले के लिए अभी कोई नोट नहीं है।",
+        actionLabel: "कार्य-आइटम",
+      }
+    : {
+        title: "Notes and collaboration",
+        subtitle: "Attach comments, tags, and action items to a district so teams can work from one shared record.",
+        sharedLog: "Shared district log",
+        district: "District",
+        author: "Author",
+        tag: "Tag",
+        actionItem: "Action item",
+        comment: "Comment",
+        save: "Save note",
+        selectedDistrict: "selected district",
+        loading: "Loading...",
+        chooseDistrict: "Choose a district first.",
+        noteSaved: "Note saved.",
+        saveError: "Could not save note.",
+        typeDistrict: "Type a district name",
+        officerName: "Officer name",
+        nextStep: "Next step for the team",
+        writeNote: "Write a short note about the district...",
+        noNotes: "No notes yet for this district.",
+        actionLabel: "Action item",
+      };
   const [districts, setDistricts] = useState([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [notes, setNotes] = useState([]);
@@ -41,7 +86,7 @@ export default function DistrictNotesPanel() {
     setStatus("");
 
     if (!selectedDistrict) {
-      setStatus("Choose a district first.");
+      setStatus(ui.chooseDistrict);
       return;
     }
 
@@ -56,9 +101,9 @@ export default function DistrictNotesPanel() {
       setForm(defaultForm);
       const refreshed = await getDistrictNotes(selectedDistrict);
       setNotes(refreshed?.notes || []);
-      setStatus("Note saved.");
+      setStatus(ui.noteSaved);
     } catch (error) {
-      setStatus(error?.response?.data?.detail || "Could not save note.");
+      setStatus(error?.response?.data?.detail || ui.saveError);
     }
   };
 
@@ -67,27 +112,27 @@ export default function DistrictNotesPanel() {
       <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start", marginBottom: "20px" }}>
         <div>
           <h2 className="gov-heading" style={{ margin: 0 }}>
-            Notes and collaboration
+            {ui.title}
           </h2>
           <p style={{ margin: "8px 0 0 0", color: "#64748b" }}>
-            Attach comments, tags, and action items to a district so teams can work from one shared record.
+            {ui.subtitle}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#ea580c", fontWeight: 700 }}>
           <NotebookText size={18} />
-          Shared district log
+          {ui.sharedLog}
         </div>
       </div>
 
       <form onSubmit={submitNote} style={{ display: "grid", gap: "14px", marginBottom: "20px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px" }}>
           <div>
-            <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>District</label>
+            <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>{ui.district}</label>
             <input
               list="district-note-options"
               value={selectedDistrict}
               onChange={(event) => setSelectedDistrict(event.target.value)}
-              placeholder="Type a district name"
+              placeholder={ui.typeDistrict}
               style={{ width: "100%", borderRadius: "12px", border: "1px solid #cbd5e1", padding: "12px 14px", boxSizing: "border-box" }}
             />
             <datalist id="district-note-options">
@@ -99,11 +144,11 @@ export default function DistrictNotesPanel() {
             </datalist>
           </div>
           <div>
-            <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Author</label>
+            <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>{ui.author}</label>
             <input
               value={form.author_name}
               onChange={(event) => setForm((current) => ({ ...current, author_name: event.target.value }))}
-              placeholder="Officer name"
+              placeholder={ui.officerName}
               style={{ width: "100%", borderRadius: "12px", border: "1px solid #cbd5e1", padding: "12px 14px", boxSizing: "border-box" }}
             />
           </div>
@@ -111,7 +156,7 @@ export default function DistrictNotesPanel() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px" }}>
           <div>
-            <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Tag</label>
+            <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>{ui.tag}</label>
             <select
               value={form.tag}
               onChange={(event) => setForm((current) => ({ ...current, tag: event.target.value }))}
@@ -125,23 +170,23 @@ export default function DistrictNotesPanel() {
             </select>
           </div>
           <div>
-            <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Action item</label>
+            <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>{ui.actionItem}</label>
             <input
               value={form.action_item}
               onChange={(event) => setForm((current) => ({ ...current, action_item: event.target.value }))}
-              placeholder="Next step for the team"
+              placeholder={ui.nextStep}
               style={{ width: "100%", borderRadius: "12px", border: "1px solid #cbd5e1", padding: "12px 14px", boxSizing: "border-box" }}
             />
           </div>
         </div>
 
         <div>
-          <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Comment</label>
+          <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>{ui.comment}</label>
           <textarea
             value={form.comment}
             onChange={(event) => setForm((current) => ({ ...current, comment: event.target.value }))}
             rows={4}
-            placeholder="Write a short note about the district..."
+            placeholder={ui.writeNote}
             style={{ width: "100%", borderRadius: "12px", border: "1px solid #cbd5e1", padding: "12px 14px", boxSizing: "border-box", resize: "vertical" }}
           />
         </div>
@@ -152,7 +197,7 @@ export default function DistrictNotesPanel() {
             style={{ display: "inline-flex", alignItems: "center", gap: "8px", border: "none", background: "#0f172a", color: "white", fontWeight: 800, borderRadius: "12px", padding: "12px 16px", cursor: "pointer" }}
           >
             <MessageSquarePlus size={18} />
-            Save note
+            {ui.save}
           </button>
           {status && <span style={{ color: "#475569" }}>{status}</span>}
         </div>
@@ -161,9 +206,9 @@ export default function DistrictNotesPanel() {
       <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "18px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
           <h3 style={{ margin: 0, color: "#0f172a" }}>
-            Notes for {selectedDistrict ? getLocalizedDistrictName(t, selectedDistrict) : "selected district"}
+            {language === "hi" ? "नोट्स के लिए " : "Notes for "}{selectedDistrict ? getLocalizedDistrictName(t, selectedDistrict) : ui.selectedDistrict}
           </h3>
-          {loading && <span style={{ color: "#64748b" }}>Loading...</span>}
+          {loading && <span style={{ color: "#64748b" }}>{ui.loading}</span>}
         </div>
 
         {notes.length ? (
@@ -183,7 +228,7 @@ export default function DistrictNotesPanel() {
                 <div style={{ color: "#334155", lineHeight: 1.7, marginBottom: "8px" }}>{note.comment}</div>
                 {note.action_item ? (
                   <div style={{ color: "#0f172a", fontWeight: 700 }}>
-                    Action item: <span style={{ color: "#475569", fontWeight: 500 }}>{note.action_item}</span>
+                    {ui.actionLabel}: <span style={{ color: "#475569", fontWeight: 500 }}>{note.action_item}</span>
                   </div>
                 ) : null}
               </div>
@@ -191,7 +236,7 @@ export default function DistrictNotesPanel() {
           </div>
         ) : (
           <div style={{ borderRadius: "16px", border: "1px dashed #cbd5e1", padding: "20px", color: "#64748b" }}>
-            No notes yet for this district.
+            {ui.noNotes}
           </div>
         )}
       </div>

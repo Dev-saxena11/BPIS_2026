@@ -5,7 +5,44 @@ import { getPriorityRanking, getSchemeRecommendation } from "../services/api";
 import { getLocalizedDistrictName } from "../utils/districtLocalization";
 
 export default function SchemeExplainabilityPanel() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const ui = language === "hi"
+    ? {
+        title: "अनुशंसा पारदर्शिता",
+        subtitle: "देखें कि किन जिला संकेतों के कारण प्रत्येक योजना अनुशंसा दी गई।",
+        ruleTrace: "नियम ट्रेस",
+        district: "जिला",
+        selectDistrict: "जिला चुनें",
+        snapshot: "जिला स्नैपशॉट",
+        why: "ये योजनाएँ क्यों सुझाई गईं",
+        schemes: "अनुशंसित योजनाएँ",
+        noTrigger: "इस जिले के लिए कोई मजबूत ट्रिगर नियम सक्रिय नहीं हुए।",
+        noScheme: "कोई योजना अनुशंसा आवश्यक नहीं है।",
+        loading: "स्पष्टीकरण लोड हो रहा है...",
+        state: "राज्य",
+        literacy: "साक्षरता",
+        population: "जनसंख्या",
+        genderRatio: "लिंगानुपात",
+        literacyIndex: "साक्षरता सूचकांक",
+      }
+    : {
+        title: "Recommendation explainability",
+        subtitle: "See exactly which district signals triggered each scheme recommendation.",
+        ruleTrace: "Rule trace",
+        district: "District",
+        selectDistrict: "Select a district",
+        snapshot: "District snapshot",
+        why: "Why these schemes were suggested",
+        schemes: "Recommended schemes",
+        noTrigger: "No strong trigger rules fired for this district.",
+        noScheme: "No scheme recommendation required.",
+        loading: "Loading explanation...",
+        state: "State",
+        literacy: "Literacy",
+        population: "Population",
+        genderRatio: "Gender ratio",
+        literacyIndex: "Literacy index",
+      };
   const [districts, setDistricts] = useState([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [result, setResult] = useState(null);
@@ -26,25 +63,25 @@ export default function SchemeExplainabilityPanel() {
       <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start", marginBottom: "20px" }}>
         <div>
           <h2 className="gov-heading" style={{ margin: 0 }}>
-            Recommendation explainability
+            {ui.title}
           </h2>
           <p style={{ margin: "8px 0 0 0", color: "#64748b" }}>
-            See exactly which district signals triggered each scheme recommendation.
+            {ui.subtitle}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#ea580c", fontWeight: 700 }}>
           <Sparkles size={18} />
-          Rule trace
+          {ui.ruleTrace}
         </div>
       </div>
 
       <div style={{ marginBottom: "18px" }}>
-        <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>District</label>
+        <label style={{ display: "block", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>{ui.district}</label>
         <input
           list="scheme-explain-options"
           value={selectedDistrict}
           onChange={(event) => setSelectedDistrict(event.target.value)}
-          placeholder="Select a district"
+          placeholder={ui.selectDistrict}
           style={{ width: "100%", maxWidth: "420px", borderRadius: "12px", border: "1px solid #cbd5e1", padding: "12px 14px", boxSizing: "border-box" }}
         />
         <datalist id="scheme-explain-options">
@@ -61,22 +98,22 @@ export default function SchemeExplainabilityPanel() {
           <div style={{ border: "1px solid #e2e8f0", borderRadius: "18px", padding: "18px", background: "#f8fafc" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", color: "#ea580c", fontWeight: 800 }}>
               <BrainCircuit size={18} />
-              District snapshot
+              {ui.snapshot}
             </div>
             <div style={{ display: "grid", gap: "10px", color: "#334155" }}>
-              <div><strong>District:</strong> {getLocalizedDistrictName(t, result.district)}</div>
-              <div><strong>State:</strong> {result.district_snapshot?.state || "N/A"}</div>
-              <div><strong>Literacy:</strong> {Number(result.district_snapshot?.literacy_rate || 0).toFixed(2)}%</div>
-              <div><strong>Population:</strong> {Number(result.district_snapshot?.population || 0).toLocaleString("en-IN")}</div>
-              <div><strong>Gender ratio:</strong> {Number(result.district_snapshot?.gender_ratio || 0).toFixed(0)}</div>
-              <div><strong>Literacy index:</strong> {Number(result.district_snapshot?.literacy_index || 0).toFixed(2)}</div>
+              <div><strong>{ui.district}:</strong> {getLocalizedDistrictName(t, result.district)}</div>
+              <div><strong>{ui.state}:</strong> {result.district_snapshot?.state || "N/A"}</div>
+              <div><strong>{ui.literacy}:</strong> {Number(result.district_snapshot?.literacy_rate || 0).toFixed(2)}%</div>
+              <div><strong>{ui.population}:</strong> {Number(result.district_snapshot?.population || 0).toLocaleString("en-IN")}</div>
+              <div><strong>{ui.genderRatio}:</strong> {Number(result.district_snapshot?.gender_ratio || 0).toFixed(0)}</div>
+              <div><strong>{ui.literacyIndex}:</strong> {Number(result.district_snapshot?.literacy_index || 0).toFixed(2)}</div>
             </div>
           </div>
 
           <div style={{ border: "1px solid #e2e8f0", borderRadius: "18px", padding: "18px", background: "#fff7ed" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", color: "#9a3412", fontWeight: 800 }}>
               <Lightbulb size={18} />
-              Why these schemes were suggested
+              {ui.why}
             </div>
             <div style={{ display: "grid", gap: "12px" }}>
               {(result.issue_details || []).map((item) => (
@@ -88,7 +125,7 @@ export default function SchemeExplainabilityPanel() {
                 </div>
               ))}
               {!result.issue_details?.length && (
-                <div style={{ color: "#64748b" }}>No strong trigger rules fired for this district.</div>
+                <div style={{ color: "#64748b" }}>{ui.noTrigger}</div>
               )}
             </div>
           </div>
@@ -96,7 +133,7 @@ export default function SchemeExplainabilityPanel() {
           <div style={{ gridColumn: "1 / -1", border: "1px solid #e2e8f0", borderRadius: "18px", padding: "18px", background: "white" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", color: "#ea580c", fontWeight: 800 }}>
               <Sparkles size={18} />
-              Recommended schemes
+              {ui.schemes}
             </div>
             <div style={{ display: "grid", gap: "12px" }}>
               {(result.recommended_schemes || []).map((scheme) => (
@@ -108,14 +145,14 @@ export default function SchemeExplainabilityPanel() {
                 </div>
               ))}
               {!result.recommended_schemes?.length && (
-                <div style={{ color: "#64748b" }}>No scheme recommendation required.</div>
+                <div style={{ color: "#64748b" }}>{ui.noScheme}</div>
               )}
             </div>
           </div>
         </div>
       ) : (
         <div style={{ borderRadius: "16px", border: "1px dashed #cbd5e1", padding: "24px", color: "#64748b" }}>
-          Loading explanation...
+          {ui.loading}
         </div>
       )}
     </div>

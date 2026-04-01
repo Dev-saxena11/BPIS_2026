@@ -6,7 +6,7 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "leaflet/dist/leaflet.css";
-import { getLocalizedDistrictName } from "../utils/districtLocalization";
+import { getLocalizedDistrictName, getLocalizedStateName } from "../utils/districtLocalization";
 
 
 /* Controller used to zoom map when a district is selected */
@@ -35,7 +35,7 @@ function MapController({ selectedDistrict, geoData }) {
 }
 
 function MapView() {
-  const { t ,language} = useLanguage();
+  const { t, language } = useLanguage();
   const [geoData, setGeoData] = useState(null);
   const [priorityData, setPriorityData] = useState([]);
   const [districtList, setDistrictList] = useState([]);
@@ -71,28 +71,6 @@ function MapView() {
     return match ? match.priority_score : 0;
   };
 
-  const getLocalizedStateName = (stateName) => {
-    if (typeof stateName !== "string") return "";
-
-    const rawName = stateName.trim();
-    if (!rawName) return "";
-
-    const stateMap = t("stateNameMap");
-    const normalizedKey = rawName.toLowerCase();
-
-    if (
-      stateMap &&
-      typeof stateMap === "object" &&
-      !Array.isArray(stateMap) &&
-      typeof stateMap[normalizedKey] === "string" &&
-      stateMap[normalizedKey].trim()
-    ) {
-      return stateMap[normalizedKey];
-    }
-
-    return rawName.charAt(0).toUpperCase() + rawName.slice(1);
-  };
-
   /* Style districts */
   const styleDistrict = (feature) => {
     const districtName = feature.properties?.district;
@@ -105,20 +83,19 @@ function MapView() {
       };
     }
 
-    let color = "#2ecc71";
+    let color = "#22c55e";
 
-    if (score > 60){
-      color = "#e74c3c";
-    }
-    else if (score > 35 && score <= 60){
-      color = "orange";
+    if (score > 60) {
+      color = "#ef4444";
+    } else if (score > 35 && score <= 60) {
+      color = "#f59e0b";
     }
     return {
       fillColor: color,
       weight: 1,
       opacity: 1,
-      color: "white",
-      fillOpacity: 0.7,
+      color: "rgba(255,255,255,0.95)",
+      fillOpacity: 0.72,
     };
   };
 
@@ -128,7 +105,7 @@ function MapView() {
     if (!name) return;
 
     layer.bindTooltip(getLocalizedDistrictName(t, name));
-    
+
     const match = priorityData.find(
       (d) => d.district?.toLowerCase() === name.toLowerCase(),
     );
@@ -136,7 +113,7 @@ function MapView() {
     if (!match) return;
 
     const districtLabel = getLocalizedDistrictName(t, match.district);
-    const stateLabel = getLocalizedStateName(match.state);
+    const stateLabel = getLocalizedStateName(t, match.state, language);
 
     layer.on("click", async () => {
       try {
@@ -152,28 +129,38 @@ function MapView() {
         layer
           .bindPopup(
             `
-          <div style="font-size:14px">
-            <b>${t('district')}:</b> ${districtLabel}<br/>
-            <b>${t('state')}:</b> ${stateLabel}<br/>
-            <b>${t('population')}:</b> ${match.population?.toLocaleString('en-IN')}<br/>
-            <b>${t('literacyRateLabel')}:</b> ${match.literacy_rate?.toFixed(2)}%<br/>
-            <b>${t('priorityScore')}:</b> ${match.priority_score?.toFixed(2)}<br/><br/>
+              <div style="font-size:14px;line-height:1.55;color:#0f172a;min-width:250px;">
+                <div style="font-size:16px;font-weight:800;margin-bottom:8px;">${districtLabel}</div>
+                <div style="display:grid;gap:4px;margin-bottom:12px;color:#334155;">
+                  <div><b>${t('state')}:</b> ${stateLabel}</div>
+                  <div><b>${t('population')}:</b> ${match.population?.toLocaleString('en-IN')}</div>
+                  <div><b>${t('literacyRateLabel')}:</b> ${match.literacy_rate?.toFixed(2)}%</div>
+                  <div><b>${t('priorityScore')}:</b> ${match.priority_score?.toFixed(2)}</div>
+                </div>
 
-            <b>${t('Policy Insights')}:</b><br/>
-            ${
-              issues.length > 0
-                ? issues.map((i) => `• ${t(i)}`).join("<br>")
-                : t("Stable Socio-Economic Indicators: Routine Monitoring")
-            }<br/><br/>
+                <div style="margin-bottom:10px;">
+                  <div style="font-weight:800;margin-bottom:6px;">${t('Policy Insights')}:</div>
+                  <div style="color:#475569;">
+                    ${
+                      issues.length > 0
+                        ? issues.map((i) => `&bull; ${t(i)}`).join("<br>")
+                        : t("Stable Socio-Economic Indicators: Routine Monitoring")
+                    }
+                  </div>
+                </div>
 
-            <b>${t('Recommended Schemes')}:</b><br/>
-            ${
-              schemes.length > 0
-                ? schemes.map((s) => `• ${t(s)}`).join("<br>")
-                : t("schemeRecommendationsEmpty")
-            }
-          </div>
-        `,
+                <div>
+                  <div style="font-weight:800;margin-bottom:6px;">${t('Recommended Schemes')}:</div>
+                  <div style="color:#475569;">
+                    ${
+                      schemes.length > 0
+                        ? schemes.map((s) => `&bull; ${t(s)}`).join("<br>")
+                        : t("schemeRecommendationsEmpty")
+                    }
+                  </div>
+                </div>
+              </div>
+            `,
           )
           .openPopup();
       } catch (error) {
@@ -184,47 +171,88 @@ function MapView() {
 
   return (
     <div style={{ position: "relative" }}>
-      <DistrictSearch
-        districts={districtList}
-        onSelect={(name) => setSelectedDistrict(name)}
-        placeholder={t('searchDistrict')}
-      />
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "14px",
+        flexWrap: "wrap",
+        marginBottom: "14px",
+      }}>
+        <div style={{ flex: "1 1 320px" }}>
+          <DistrictSearch
+            districts={districtList}
+            onSelect={(name) => setSelectedDistrict(name)}
+            placeholder={t('searchDistrict')}
+          />
+        </div>
 
-      <div style={{ marginBottom: "10px", marginTop: "10px" }}>
         <button
           onClick={() => setShowHighPriority(!showHighPriority)}
           style={{
-            padding: "8px 12px",
-            background: "#2c3e50",
+            padding: "11px 16px",
+            background: showHighPriority
+              ? "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)"
+              : "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
             color: "white",
             border: "none",
-            borderRadius: "6px",
+            borderRadius: "14px",
             cursor: "pointer",
+            boxShadow: "0 12px 24px rgba(15, 23, 42, 0.16)",
+            fontWeight: 700,
+            letterSpacing: "0.01em",
           }}
         >
           {showHighPriority ? t('showAllDistricts') : t('showCriticalDistricts')}
         </button>
       </div>
 
-      <MapContainer
-        center={[22.9734, 78.6569]}
-        zoom={5}
-        style={{ height: "420px", width: "100%" }}
-      >
-        <MapController selectedDistrict={selectedDistrict} geoData={geoData} />
+      <div style={{
+        position: "relative",
+        borderRadius: "24px",
+        overflow: "hidden",
+        border: "1px solid rgba(226,232,240,0.9)",
+        boxShadow: "0 20px 42px rgba(15, 23, 42, 0.12)",
+        background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+      }}>
+        <MapContainer
+          center={[22.9734, 78.6569]}
+          zoom={5}
+          style={{ height: "520px", width: "100%" }}
+        >
+          <MapController selectedDistrict={selectedDistrict} geoData={geoData} />
 
-        {/* Using CartoDB Voyager to explicitly enforce English labels */}
-        <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+          {/* Using CartoDB Voyager to explicitly enforce English labels */}
+          <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
 
-        {geoData && (
-          <GeoJSON
-            key={language}
-            data={geoData}
-            style={styleDistrict}
-            onEachFeature={onEachDistrict}
-          />
-        )}
-      </MapContainer>
+          {geoData && (
+            <GeoJSON
+              key={language}
+              data={geoData}
+              style={styleDistrict}
+              onEachFeature={onEachDistrict}
+            />
+          )}
+        </MapContainer>
+
+        <div style={{
+          position: "absolute",
+          top: "14px",
+          right: "14px",
+          padding: "10px 12px",
+          borderRadius: "999px",
+          background: "rgba(255,255,255,0.9)",
+          border: "1px solid rgba(226,232,240,0.95)",
+          boxShadow: "0 10px 22px rgba(15, 23, 42, 0.10)",
+          fontSize: "0.85rem",
+          color: "#334155",
+          zIndex: 600,
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}>
+          {showHighPriority ? t('showCriticalDistricts') : t('showAllDistricts')}
+        </div>
+      </div>
 
       <Legend />
     </div>

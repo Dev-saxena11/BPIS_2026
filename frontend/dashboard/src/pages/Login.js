@@ -292,6 +292,8 @@ const Login = ({ onLogin }) => {
         width: "100%",
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        background:
+          "radial-gradient(circle at top left, rgba(29, 78, 216, 0.14), transparent 30%), radial-gradient(circle at bottom right, rgba(234, 88, 12, 0.14), transparent 28%), #f4f7fb",
       }}
     >
       {/* ---------------- LEFT SIDE ---------------- */}
@@ -299,7 +301,7 @@ const Login = ({ onLogin }) => {
         style={{
           flex: 1,
           background:
-            "linear-gradient(135deg, #020617 0%, #0f172a 40%, #1e1b4b 100%)",
+            "linear-gradient(135deg, #020617 0%, #0f172a 45%, #1d4ed8 100%)",
           color: "white",
           display: "flex",
           flexDirection: "column",
@@ -338,7 +340,7 @@ const Login = ({ onLogin }) => {
         <div style={{ position: "relative", zIndex: 10 }}>
           <h1
             style={{
-              fontSize: "3.75rem",
+              fontSize: "clamp(3rem, 5vw, 4.4rem)",
               fontWeight: 800,
               lineHeight: 1.2,
               marginBottom: "32px",
@@ -353,7 +355,7 @@ const Login = ({ onLogin }) => {
           </h1>
           <p
             style={{
-              fontSize: "1.25rem",
+              fontSize: "1.15rem",
               color: "#94a3b8",
               lineHeight: 1.6,
               maxWidth: "600px",
@@ -371,15 +373,17 @@ const Login = ({ onLogin }) => {
       <div
         style={{
           flex: 1.1,
-          backgroundColor: "#ffffff",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.98) 100%)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           padding: "40px",
+          boxShadow: "-16px 0 40px rgba(15, 23, 42, 0.08)",
         }}
       >
-        <div style={{ width: "100%", maxWidth: "500px", position: "relative" }}>
+        <div style={{ width: "100%", maxWidth: "520px", position: "relative" }}>
           <div style={{textAlign: "center",marginBottom: view === "login" ? "48px" : "24px",}}>
             <div
               style={{
@@ -388,6 +392,11 @@ const Login = ({ onLogin }) => {
                 justifyContent: "center",
                 gap: "20px", // Logo aur Text ke beech ka space
                 marginBottom: "24px",
+                padding: "16px 18px",
+                borderRadius: "24px",
+                background: "rgba(255,255,255,0.8)",
+                border: "1px solid rgba(226,232,240,0.95)",
+                boxShadow: "0 16px 32px rgba(15,23,42,0.08)",
               }}
             >
               {/* 1. Logo Integration */}
@@ -404,7 +413,7 @@ const Login = ({ onLogin }) => {
               {/* 2. Brand Name */}
               <h1
                 style={{
-                  fontSize: "2.5rem",
+                  fontSize: "clamp(2.1rem, 3vw, 2.9rem)",
                   fontWeight: 900,
                   color: "#0f172a",
                   margin: 0,
@@ -426,7 +435,7 @@ const Login = ({ onLogin }) => {
               <>
                 <h3
                   style={{
-                    fontSize: "1.75rem",
+                    fontSize: "1.8rem",
                     color: "#0f172a",
                     fontWeight: 800,
                     marginBottom: "12px",
@@ -434,7 +443,7 @@ const Login = ({ onLogin }) => {
                 >
                   Log into BPIS
                 </h3>
-                <p style={{ color: "#64748b", fontSize: "1.1rem" }}>
+                <p style={{ color: "#64748b", fontSize: "1rem" }}>
                   Select any one from the below options
                 </p>
               </>
@@ -444,7 +453,7 @@ const Login = ({ onLogin }) => {
               <>
                 <h3
                   style={{
-                    fontSize: "1.75rem",
+                    fontSize: "1.8rem",
                     color: "#0f172a",
                     fontWeight: 800,
                     marginBottom: "12px",
@@ -452,7 +461,7 @@ const Login = ({ onLogin }) => {
                 >
                   Mobile Verification
                 </h3>
-                <p style={{ color: "#64748b", fontSize: "1.1rem" }}>
+                <p style={{ color: "#64748b", fontSize: "1rem" }}>
                   We will send an OTP via SMS to verify your identity
                 </p>
               </>
@@ -462,7 +471,7 @@ const Login = ({ onLogin }) => {
               <>
                 <h3
                   style={{
-                    fontSize: "1.75rem",
+                    fontSize: "1.8rem",
                     color: "#0f172a",
                     fontWeight: 800,
                     marginBottom: "12px",
@@ -470,7 +479,7 @@ const Login = ({ onLogin }) => {
                 >
                   Verify Secure Pin
                 </h3>
-                <p style={{ color: "#64748b", fontSize: "1.1rem" }}>
+                <p style={{ color: "#64748b", fontSize: "1rem" }}>
                   Enter the 6-digit OTP sent via Twilio to your phone
                 </p>
               </>
@@ -480,7 +489,7 @@ const Login = ({ onLogin }) => {
               <>
                 <h3
                   style={{
-                    fontSize: "1.75rem",
+                    fontSize: "1.8rem",
                     color: "#0f172a",
                     fontWeight: 800,
                     marginBottom: "12px",
@@ -488,7 +497,7 @@ const Login = ({ onLogin }) => {
                 >
                   Create an Account
                 </h3>
-                <p style={{ color: "#64748b", fontSize: "1.1rem" }}>
+                <p style={{ color: "#64748b", fontSize: "1rem" }}>
                   Register yourself for the BPIS Portal
                 </p>
               </>

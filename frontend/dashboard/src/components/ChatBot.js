@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import ChatbotFAB from './ChatbotFAB';
 import { useLanguage } from '../contexts/LanguageContext';
-import './ChatBot.css'; // Import standard CSS to fix the un-styled component issue
+import './ChatBot.css';
+
+const getSpeechLang = (lang) => (lang === 'hi' ? 'hi-IN' : 'en-IN');
 
 const ChatBot = () => {
     const { language } = useLanguage();
@@ -16,7 +18,17 @@ const ChatBot = () => {
     ]);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [speechError, setSpeechError] = useState('');
+    const [isSpeechSupported, setIsSpeechSupported] = useState(true);
+    const [voiceLanguage, setVoiceLanguage] = useState(language);
+    const [ttsEnabled, setTtsEnabled] = useState(false);
+    const [isTtsSupported, setIsTtsSupported] = useState(true);
+
     const messagesEndRef = useRef(null);
+    const recognitionRef = useRef(null);
+    const inputSnapshotRef = useRef('');
+    const lastSpokenIndexRef = useRef(-1);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,6 +38,131 @@ const ChatBot = () => {
         scrollToBottom();
     }, [messages, isTyping]);
 
+    useEffect(() => {
+        setVoiceLanguage(language);
+    }, [language]);
+
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        setIsSpeechSupported(Boolean(SpeechRecognition));
+        setIsTtsSupported(Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance));
+
+        if (!SpeechRecognition) return;
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = getSpeechLang(voiceLanguage);
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = (event) => {
+            let finalTranscript = '';
+            let interimTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i += 1) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            const baseText = inputSnapshotRef.current.trim();
+            const combinedFinal = [baseText, finalTranscript.trim()].filter(Boolean).join(' ');
+            const combinedInterim = [baseText, interimTranscript.trim()].filter(Boolean).join(' ');
+
+            if (combinedFinal) {
+                setInput(combinedFinal);
+            } else if (combinedInterim) {
+                setInput(combinedInterim);
+            }
+        };
+
+        recognition.onerror = (event) => {
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                setSpeechError(
+                    voiceLanguage === 'hi'
+                        ? 'माइक्रोफोन की अनुमति चाहिए.'
+                        : 'Microphone permission is required.'
+                );
+            } else if (event.error !== 'aborted') {
+                setSpeechError(
+                    voiceLanguage === 'hi'
+                        ? 'आवाज़ पहचान अभी उपलब्ध नहीं है.'
+                        : 'Speech recognition is not available right now.'
+                );
+            }
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+
+        return () => {
+            recognition.onresult = null;
+            recognition.onerror = null;
+            recognition.onend = null;
+            recognition.abort();
+            recognitionRef.current = null;
+        };
+    }, [voiceLanguage]);
+
+    useEffect(() => {
+        if (!ttsEnabled && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+    }, [ttsEnabled]);
+
+    useEffect(() => {
+        if (!isOpen && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!ttsEnabled || isTyping || messages.length === 0) return;
+
+        const lastIndex = messages.length - 1;
+        if (lastSpokenIndexRef.current === lastIndex) return;
+
+        const latestMessage = messages[lastIndex];
+        if (latestMessage?.sender !== 'AI') return;
+
+        const text = (latestMessage.text || '').trim();
+        if (!text || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+
+        const utterance = new window.SpeechSynthesisUtterance(text);
+        utterance.lang = getSpeechLang(voiceLanguage);
+        utterance.rate = 0.98;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+
+        const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+        const preferredVoice =
+            voices.find((voice) => voice.lang?.toLowerCase().startsWith(voiceLanguage === 'hi' ? 'hi' : 'en')) ||
+            voices.find((voice) => voice.lang?.toLowerCase() === utterance.lang.toLowerCase()) ||
+            voices.find((voice) => voice.lang?.toLowerCase().startsWith('en')) ||
+            voices.find((voice) => voice.lang?.toLowerCase().startsWith('hi'));
+
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+        }
+
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        lastSpokenIndexRef.current = lastIndex;
+
+        return () => {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+        };
+    }, [messages, ttsEnabled, isTyping, voiceLanguage]);
+
     const buildHistoryPayload = (historyMessages) => {
         return historyMessages.slice(-4).map((message) => ({
             role: message.sender === 'AI' ? 'assistant' : 'user',
@@ -33,8 +170,48 @@ const ChatBot = () => {
         }));
     };
 
+    const handleMicClick = () => {
+        if (!isSpeechSupported) {
+            setSpeechError(
+                voiceLanguage === 'hi'
+                    ? 'यह ब्राउज़र voice input support नहीं करता.'
+                    : 'This browser does not support voice input.'
+            );
+            return;
+        }
+
+        const recognition = recognitionRef.current;
+        if (!recognition) return;
+
+        if (isListening) {
+            recognition.stop();
+            return;
+        }
+
+        setSpeechError('');
+        inputSnapshotRef.current = input;
+
+        try {
+            recognition.lang = getSpeechLang(voiceLanguage);
+            recognition.start();
+            setIsListening(true);
+        } catch (error) {
+            setSpeechError(
+                voiceLanguage === 'hi'
+                    ? 'माइक्रोफोन शुरू नहीं किया जा सका.'
+                    : 'Could not start microphone.'
+            );
+            setIsListening(false);
+        }
+    };
+
     const handleSend = async () => {
         if (!input.trim()) return;
+
+        const recognition = recognitionRef.current;
+        if (recognition && isListening) {
+            recognition.stop();
+        }
 
         const userMessage = input.trim();
         const historyForRequest = buildHistoryPayload(messages);
@@ -43,6 +220,8 @@ const ChatBot = () => {
         setResponseSource(null);
         setInput('');
         setIsTyping(true);
+        setSpeechError('');
+        lastSpokenIndexRef.current = -1;
 
         try {
             const response = await fetch('http://localhost:8000/api/chatbot', {
@@ -89,6 +268,10 @@ const ChatBot = () => {
         }
     };
 
+    const speakToggleLabel = ttsEnabled
+        ? (voiceLanguage === 'hi' ? 'आवाज़ बंद करें' : 'Turn voice off')
+        : (voiceLanguage === 'hi' ? 'आवाज़ में पढ़ें' : 'Read replies aloud');
+
     return (
         <div className="chatbot-container">
             {isOpen ? (
@@ -96,11 +279,59 @@ const ChatBot = () => {
                     <div className="chatbot-header">
                         <div className="chatbot-header-title">
                             <MessageCircle size={20} />
-                            <h3 style={{ margin: 0 }}>BPIS Assistant</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <h3 style={{ margin: 0 }}>BPIS Assistant</h3>
+                                <span className="chatbot-header-subtitle">
+                                    {voiceLanguage === 'hi' ? 'Hindi / English Voice' : 'English / Hindi Voice'}
+                                </span>
+                            </div>
                         </div>
-                        <button onClick={() => setIsOpen(false)} className="chatbot-close-btn" aria-label="Close Chat">
-                            <X size={20} />
-                        </button>
+
+                        <div className="chatbot-header-actions">
+                            <div className="chatbot-lang-switch" role="group" aria-label="Voice language selector">
+                                <button
+                                    type="button"
+                                    className={`chatbot-lang-chip ${voiceLanguage === 'en' ? 'active' : ''}`}
+                                    onClick={() => setVoiceLanguage('en')}
+                                    aria-pressed={voiceLanguage === 'en'}
+                                    title={language === 'hi' ? 'वॉइस इनपुट English में' : 'Voice input in English'}
+                                >
+                                    EN
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`chatbot-lang-chip ${voiceLanguage === 'hi' ? 'active' : ''}`}
+                                    onClick={() => setVoiceLanguage('hi')}
+                                    aria-pressed={voiceLanguage === 'hi'}
+                                    title={language === 'hi' ? 'वॉइस इनपुट Hindi में' : 'Voice input in Hindi'}
+                                >
+                                    HI
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setTtsEnabled((current) => !current);
+                                    setSpeechError('');
+                                }}
+                                className={`chatbot-tts-btn ${ttsEnabled ? 'enabled' : ''}`}
+                                aria-label={speakToggleLabel}
+                                title={speakToggleLabel}
+                                disabled={!isTtsSupported}
+                            >
+                                {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setIsOpen(false)}
+                                className="chatbot-close-btn"
+                                aria-label="Close Chat"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="chatbot-body">
@@ -131,12 +362,29 @@ const ChatBot = () => {
                     </div>
 
                     <div className="chatbot-footer">
+                        <button
+                            type="button"
+                            onClick={handleMicClick}
+                            disabled={!isSpeechSupported || isTyping}
+                            className={`chatbot-mic-btn ${isListening ? 'listening' : ''}`}
+                            aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                            aria-pressed={isListening}
+                            title={
+                                !isSpeechSupported
+                                    ? (language === 'hi' ? 'आपका ब्राउज़र voice input support नहीं करता' : 'Your browser does not support voice input')
+                                    : isListening
+                                        ? (voiceLanguage === 'hi' ? 'सुन रहा है...' : 'Listening...')
+                                        : (voiceLanguage === 'hi' ? 'माइक दबाकर बोलें' : 'Tap mic and speak')
+                            }
+                        >
+                            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                        </button>
                         <input
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                            placeholder="Type a message..."
+                            placeholder={voiceLanguage === 'hi' ? 'यहाँ टाइप करें या mic दबाएँ...' : 'Type a message or press mic...'}
                             className="chatbot-input"
                         />
                         <button
@@ -147,6 +395,23 @@ const ChatBot = () => {
                         >
                             <Send size={18} />
                         </button>
+                    </div>
+                    <div className="chatbot-footer-meta">
+                        <span className={`chatbot-live-status ${isListening ? 'listening' : ''}`}>
+                            {isListening
+                                ? (voiceLanguage === 'hi' ? 'सुन रहा है...' : 'Listening...')
+                                : (language === 'hi'
+                                    ? 'Hindi और English voice input supported'
+                                    : 'Hindi and English voice input supported')}
+                        </span>
+                        {speechError && <span className="chatbot-live-error">{speechError}</span>}
+                        {ttsEnabled && (
+                            <span className="chatbot-live-status">
+                                {voiceLanguage === 'hi'
+                                    ? 'AI जवाब आवाज़ में पढ़े जाएंगे'
+                                    : 'AI replies will be spoken aloud'}
+                            </span>
+                        )}
                     </div>
                 </div>
             ) : (

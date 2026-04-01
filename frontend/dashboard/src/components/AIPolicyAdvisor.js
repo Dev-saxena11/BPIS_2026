@@ -25,7 +25,86 @@ const interactiveButtonBase = {
 };
 
 const AIPolicyAdvisor = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const ui = language === "hi"
+    ? {
+        title: "एआई नीति अनुकरण",
+        ask: "पूछें",
+        askPlaceholder: "नीति-आधारित प्रश्न पूछें...",
+        increaseFunding: "वित्तपोषण बढ़ाएँ (%):",
+        runSimulation: "सिमुलेशन चलाएँ",
+        beforeAfter: "पहले बनाम बाद में नीति प्रभाव",
+        greyGreen: "धूसर = वर्तमान स्थिति, हरा = अनुमानित प्रभाव",
+        recommendedDistricts: "अनुशंसित जिले",
+        beforeSimulation: "सिमुलेशन से पहले",
+        reason: "कारण",
+        supportingData: "सहायक डेटा",
+        recommendedAction: "अनुशंसित कार्यवाही",
+        recommendedSchemes: "जिलेवार अनुशंसित योजनाएँ",
+        impactAnalysis: "प्रभाव विश्लेषण",
+        loading: "लोड हो रहा है...",
+        districts: "जिले",
+        avgLiteracy: "औसत साक्षरता",
+        avgPriority: "औसत प्राथमिकता",
+        priority: "प्राथमिकता",
+        population: "जनसंख्या",
+        literacy: "साक्षरता",
+        district: "जिला",
+        metricLegend: "मेट्रिक रंग संकेतक:",
+        districtCompareGrey: "धूसर = वर्तमान स्थिति",
+        districtCompareGreen: "हरा = अनुमानित प्रभाव",
+        selectedDistricts: "चयनित जिले",
+        currentStatus: "वर्तमान स्थिति",
+        predictedImpact: "अनुमानित प्रभाव",
+        state: "राज्य",
+        genderRatio: "लिंगानुपात",
+        literacyIndex: "साक्षरता सूचकांक",
+        schemeRecommendations: "योजना अनुशंसाएँ",
+        triggerReasons: "ट्रिगर कारण",
+        schemeOverlap: "योजनाओं का ओवरलैप",
+        allSchemes: "सभी अनुशंसित योजनाएँ",
+        noDistricts: "आरंभ करने के लिए एक या अधिक जिलों को जोड़ें",
+        noDistrictsDesc: "पूरी जिला सूची से खोजें, जितने चाहें उतने जिले जोड़ें, और BPIS हर संख्यात्मक मेट्रिक व योजना अनुशंसाओं की तुलना करेगा।",
+      }
+    : {
+        title: "AI Policy Simulation",
+        ask: "Ask",
+        askPlaceholder: "Ask a policy question...",
+        increaseFunding: "Increase Funding (%):",
+        runSimulation: "Run Simulation",
+        beforeAfter: "Before vs After Policy Impact",
+        greyGreen: "धूसर = वर्तमान स्थिति, हरा = अनुमानित प्रभाव",
+        recommendedDistricts: "Recommended Districts",
+        beforeSimulation: "Before Simulation (Current High Priority)",
+        reason: "Reason",
+        supportingData: "Supporting Data",
+        recommendedAction: "Recommended Action",
+        recommendedSchemes: "Recommended Schemes (District-wise)",
+        impactAnalysis: "Impact Analysis: Priority Score Reduction",
+        loading: "Loading...",
+        districts: "Districts",
+        avgLiteracy: "Average literacy",
+        avgPriority: "Average priority score",
+        priority: "Priority",
+        population: "Population",
+        literacy: "Literacy",
+        district: "District",
+        metricLegend: "Metric color legend:",
+        districtCompareGrey: "Grey = Current Status",
+        districtCompareGreen: "Green = Predicted Impact",
+        selectedDistricts: "Selected districts",
+        currentStatus: "Current Status",
+        predictedImpact: "Predicted Impact",
+        state: "State",
+        genderRatio: "Gender ratio",
+        literacyIndex: "Literacy index",
+        schemeRecommendations: "योजना अनुशंसाएँ",
+        triggerReasons: "ट्रिगर कारण",
+        schemeOverlap: "Scheme overlap",
+        allSchemes: "सभी अनुशंसित योजनाएँ",
+        noDistricts: "आरंभ करने के लिए एक या अधिक जिले जोड़ें",
+        noDistrictsDesc: "Search from the full district list, add as many districts as you want, and BPIS will compare every numeric metric plus scheme recommendations.",
+      };
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -202,13 +281,13 @@ const AIPolicyAdvisor = () => {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2>{t('aiPolicySimulation')}</h2>
+      <h2>{ui.title}</h2>
 
       {/* Query Input */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
         <input
           type="text"
-          placeholder={t('askPolicyQuestion')}
+          placeholder={ui.askPlaceholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           style={{ ...inputStyle, flex: "1 1 420px", minWidth: "260px" }}
@@ -233,12 +312,12 @@ const AIPolicyAdvisor = () => {
             e.currentTarget.style.transform = "translateY(-2px)";
           }}
         >
-          {t('ask')}
+          {ui.ask}
         </button>
       </div>
 
       <div style={{ marginTop: "16px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
-        <label style={{ color: "#475569", fontWeight: 600 }}>{t('increaseFunding')}</label>
+        <label style={{ color: "#475569", fontWeight: 600 }}>{ui.increaseFunding}</label>
         <input
           type="number"
           value={increase}
@@ -270,16 +349,16 @@ const AIPolicyAdvisor = () => {
             e.currentTarget.style.transform = "translateY(-2px)";
           }}
         >
-          {t('runSimulationBtn')}
+          {ui.runSimulation}
         </button>
       </div>
 
       {/* Before vs After Chart */}
       {chartData.length > 0 && (
         <div style={{ marginTop: "30px" }}>
-          <h3>{t('beforeVsAfter')}</h3>
+          <h3>{ui.beforeAfter}</h3>
           <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: "0.92rem", fontWeight: 600 }}>
-            Grey = Current Status, Green = Predicted Impact
+            {ui.greyGreen}
           </p>
           <BarChart width={600} height={300} data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -291,30 +370,30 @@ const AIPolicyAdvisor = () => {
               content={
                 <LocalizedTooltip
                   keyLabelMap={{
-                    before: t('before'),
-                    after: t('after'),
+                    before: ui.currentStatus,
+                    after: ui.predictedImpact,
                   }}
                 />
               }
             />
-            <Legend formatter={(value) => ({ before: "Grey = Current Status", after: "Green = Predicted Impact" }[value] || value)} />
-            <Bar dataKey="before" name="Grey = Current Status" fill="#94a3b8" animationDuration={1500} />
-            <Bar dataKey="after" name="Green = Predicted Impact" fill="#22c55e" animationDuration={1500} />
+            <Legend formatter={(value) => ({ before: ui.districtCompareGrey, after: ui.districtCompareGreen }[value] || value)} />
+            <Bar dataKey="before" name={ui.districtCompareGrey} fill="#94a3b8" animationDuration={1500} />
+            <Bar dataKey="after" name={ui.districtCompareGreen} fill="#22c55e" animationDuration={1500} />
           </BarChart>
         </div>
       )}
 
       {/* Loading */}
-      {loading && <p>{t('loading')}</p>}
+      {loading && <p>{ui.loading}</p>}
 
       {/* Result */}
       {result && (
         <div style={{ marginTop: "20px" }}>
 
           {/* Recommended Districts */}
-          <h3>{t('recommendedDistricts')}</h3>
+          <h3>{ui.recommendedDistricts}</h3>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <h4>{t('beforeSimulation')}</h4>
+            <h4>{ui.beforeSimulation}</h4>
             {result.supporting_data.map((districtData, i) => (
               <div
                 key={`${districtData.district}-${i}`}
@@ -338,20 +417,20 @@ const AIPolicyAdvisor = () => {
           </div>
 
           {/* Reason — backend returns a translation key */}
-          <h3 style={sectionHeadingStyle}>{t('reason')}</h3>
+          <h3 style={sectionHeadingStyle}>{ui.reason}</h3>
           <p style={{ marginTop: 0, lineHeight: 1.6, color: "#334155" }}>{t(result.reason)}</p>
 
           {/* Supporting Data Table */}
           <div style={{ ...cardStyle, marginTop: "24px" }}>
-            <h3 style={sectionHeadingStyle}>{t('supportingData')}</h3>
+            <h3 style={sectionHeadingStyle}>{ui.supportingData}</h3>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
                 <thead>
                   <tr>
-                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "0.84rem" }}>{t('district')}</th>
-                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "0.84rem" }}>{t('literacy')}</th>
-                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "0.84rem" }}>{t('population')}</th>
-                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "0.84rem" }}>{t('priorityScore')}</th>
+                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "0.84rem" }}>{ui.district}</th>
+                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "0.84rem" }}>{ui.literacy}</th>
+                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "0.84rem" }}>{ui.population}</th>
+                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "0.84rem" }}>{ui.priority}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -370,12 +449,12 @@ const AIPolicyAdvisor = () => {
           </div>
 
           {/* Action — backend returns a translation key */}
-          <h3 style={{ ...sectionHeadingStyle, marginTop: "24px" }}>{t('recommendedAction')}</h3>
+          <h3 style={{ ...sectionHeadingStyle, marginTop: "24px" }}>{ui.recommendedAction}</h3>
           <p style={{ marginTop: 0, lineHeight: 1.6, color: "#334155" }}>{t(result.action)}</p>
 
           {/* Recommended Schemes per district */}
           <div style={{ ...cardStyle, marginTop: "24px" }}>
-            <h3 style={sectionHeadingStyle}>{t('recommendedSchemes')}</h3>
+            <h3 style={sectionHeadingStyle}>{ui.recommendedSchemes}</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
               {result.recommended_schemes &&
                 result.recommended_schemes.map((d, i) => (
@@ -405,9 +484,9 @@ const AIPolicyAdvisor = () => {
       {/* Impact Analysis Chart */}
       {simulationData && (
         <div style={{ ...cardStyle, marginTop: "30px" }}>
-          <h3 style={sectionHeadingStyle}>{t('impactAnalysis')}</h3>
+          <h3 style={sectionHeadingStyle}>{ui.impactAnalysis}</h3>
           <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: "0.92rem", fontWeight: 600 }}>
-            Grey = Current Status, Green = Predicted Impact
+            {ui.greyGreen}
           </p>
           <BarChart width={600} height={300} data={simulationData.chart_data}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -426,11 +505,11 @@ const AIPolicyAdvisor = () => {
               }
             />
             <Legend formatter={(value) => ({
-              before_score: "Grey = Current Status",
-              after_score: "Green = Predicted Impact",
+              before_score: ui.districtCompareGrey,
+              after_score: ui.districtCompareGreen,
             }[value] || value)} />
-            <Bar name="Grey = Current Status" dataKey="before_score" fill="#94a3b8" animationDuration={1500} />
-            <Bar name="Green = Predicted Impact" dataKey="after_score" fill="#22c55e" animationDuration={1500} />
+            <Bar name={ui.districtCompareGrey} dataKey="before_score" fill="#94a3b8" animationDuration={1500} />
+            <Bar name={ui.districtCompareGreen} dataKey="after_score" fill="#22c55e" animationDuration={1500} />
           </BarChart>
         </div>
       )}

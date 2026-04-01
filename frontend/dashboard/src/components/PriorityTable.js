@@ -1,10 +1,10 @@
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useState } from "react";
 import { getPriorityRanking } from "../services/api";
-import { getLocalizedDistrictName } from "../utils/districtLocalization";
+import { getLocalizedDistrictName, getLocalizedStateName } from "../utils/districtLocalization";
 
 function PriorityTable() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
 
   const [districts, setDistricts] = useState([]);
@@ -35,7 +35,7 @@ function PriorityTable() {
           {districts.slice(0, 5).map((d, index) => (
             <tr key={index} style={{ background: index % 2 === 0 ? "#ffffff" : "#f8fafc", borderBottom:"1px solid #e2e8f0", transition:"background-color 0.2s" }} onMouseOver={e=>e.currentTarget.style.backgroundColor="#fef2f2"} onMouseOut={e=>e.currentTarget.style.backgroundColor=index % 2 === 0 ? "#ffffff" : "#f8fafc"}>
               <td style={{ padding:"16px", fontWeight:"600", color:"#0f172a" }}>{getLocalizedDistrictName(t, d.district)}</td>
-              <td style={{ padding:"16px", color:"#475569", textTransform: 'capitalize' }}>{(t("stateNameMap") && t("stateNameMap")[d.state?.toLowerCase()]) || d.state}</td>
+              <td style={{ padding:"16px", color:"#475569", textTransform: 'capitalize' }}>{getLocalizedStateName(t, d.state, language)}</td>
               <td style={{ padding:"16px", color:"#dc2626", fontWeight:"700" }}>{d.priority_score.toFixed(2)}</td>
             </tr>
           ))}

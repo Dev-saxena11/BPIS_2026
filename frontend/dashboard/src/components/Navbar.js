@@ -6,79 +6,90 @@ function Navbar({ isSidebarExpanded }) {
 
   return (
     <div style={{
-      background:"#0f172a",
+      background: "linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.94) 100%)",
       color:"white",
-      padding:"10px 20px",
-      fontSize:"20px",
+      padding:"12px 20px",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      position: "relative",
-      zIndex: 1
+      position: "sticky",
+      top: 0,
+      zIndex: 20,
+      borderBottom: "1px solid rgba(148, 163, 184, 0.14)",
+      boxShadow: "0 12px 30px rgba(15, 23, 42, 0.18)",
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
     }}>
-      <div style={{ paddingLeft: isSidebarExpanded ? "0px" : "70px", transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }}>{t("appTitle")}</div>
+      <div style={{
+        paddingLeft: isSidebarExpanded ? "0px" : "70px",
+        transition: "padding-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "2px",
+      }}>
+        <div style={{ fontSize: "0.78rem", color: "#94a3b8", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+          District Intelligence Platform
+        </div>
+        <div style={{ fontSize: "1.2rem", fontWeight: 700, letterSpacing: "-0.02em" }}>{t("appTitle")}</div>
+      </div>
       
-      <div 
-  onClick={toggleLanguage}
-  style={{
-    width: '85px', // Slightly wider for better movement range
-    height: '38px',
-    backgroundColor: '#f97316',
-    borderRadius: '24px',
-    display: 'flex',
-    alignItems: 'center',
-    position: 'relative',
-    cursor: 'pointer',
-    padding: '4px',
-    transition: 'background-color 0.4s ease', // Smooth color shift
-    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)' // Inner shadow for depth
-  }}
->
-  {/* The Sliding White Pill */}
-  <div style={{
-    position: 'absolute',
-    width: '40px',
-    height: '30px',
-    backgroundColor: 'white',
-    borderRadius: '20px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-    
-    // --- MAGIC HAPPENS HERE ---
-    // Cubic-bezier gives it that 'pop' and 'snap' feel
-    transition: 'transform 0.45s cubic-bezier(0.68, -0.55, 0.265, 1.55), box-shadow 0.3s ease',
-    
-    // Smooth transform logic
-    transform: language === 'en' ? 'translateX(37px)' : 'translateX(0px)',
-    
-    // Add a shadow that moves with the pill
-    boxShadow: '0 4px 6px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)'
-  }}>
-    <span style={{ 
-      color: '#f97316', 
-      fontSize: '13px', 
-      fontWeight: '800',
-      transition: 'opacity 0.2s ease' 
-    }}>
-      {language === 'en' ? 'EN' : 'HI'}
-    </span>
-  </div>
+      <button
+        type="button"
+        onClick={toggleLanguage}
+        aria-label="Toggle language"
+        title={language === 'en' ? 'Switch to Hindi' : 'Switch to English'}
+        style={{
+          width: '92px',
+          height: '40px',
+          background: 'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)',
+          borderRadius: '999px',
+          display: 'flex',
+          alignItems: 'center',
+          position: 'relative',
+          cursor: 'pointer',
+          padding: '4px',
+          border: '1px solid rgba(255,255,255,0.14)',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          boxShadow: '0 10px 22px rgba(234, 88, 12, 0.22)',
+        }}
+      >
+        <div style={{
+          position: 'absolute',
+          width: '42px',
+          height: '32px',
+          backgroundColor: 'white',
+          borderRadius: '999px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2,
+          transition: 'transform 0.45s cubic-bezier(0.68, -0.55, 0.265, 1.55), box-shadow 0.3s ease',
+          transform: language === 'en' ? 'translateX(42px)' : 'translateX(0px)',
+          boxShadow: '0 6px 14px rgba(15,23,42,0.16)'
+        }}>
+          <span style={{ 
+            color: '#ea580c', 
+            fontSize: '13px', 
+            fontWeight: '800',
+            letterSpacing: '0.04em',
+            transition: 'opacity 0.2s ease' 
+          }}>
+            {language === 'en' ? 'EN' : 'HI'}
+          </span>
+        </div>
 
-  {/* Background Labels */}
-  <div style={{ 
-    flex: 1, 
-    display: 'flex', 
-    justifyContent: 'space-around', 
-    alignItems: 'center',
-    zIndex: 1,
-    userSelect: 'none' // Prevent text selection on rapid clicks
-  }}>
-    <span style={{ color: 'white', fontSize: '12px', fontWeight: '700', opacity: language === 'hi' ? 0.3 : 0.8 }}>HI</span>
-    <span style={{ color: 'white', fontSize: '12px', fontWeight: '700', opacity: language === 'en' ? 0.3 : 0.8 }}>EN</span>
-  </div>
-</div>
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          justifyContent: 'space-around', 
+          alignItems: 'center',
+          zIndex: 1,
+          userSelect: 'none'
+        }}>
+          <span style={{ color: 'white', fontSize: '12px', fontWeight: '700', opacity: language === 'hi' ? 0.4 : 0.9 }}>HI</span>
+          <span style={{ color: 'white', fontSize: '12px', fontWeight: '700', opacity: language === 'en' ? 0.4 : 0.9 }}>EN</span>
+        </div>
+      </button>
     </div>
   );
 }

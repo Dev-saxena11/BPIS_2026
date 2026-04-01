@@ -63,9 +63,11 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    transition: "all 0.2s ease",
+    transition: "transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease",
     borderLeft: "4px solid transparent",
     whiteSpace: "nowrap",
+    borderRadius: "14px",
+    margin: "0 14px",
   };
 
   return (
@@ -88,15 +90,15 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
           style={{
             width: "40px",
             height: "40px",
-            borderRadius: "12px",
-            border: "none",
+            borderRadius: "14px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            backgroundColor: "#0f172a",
+            background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
             color: "white",
-            boxShadow: "10px 0 15px -3px rgba(0, 0, 0, 0.1)",
+            boxShadow: "0 14px 28px rgba(15, 23, 42, 0.22)",
+            border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
           <Menu size={18} />
@@ -111,37 +113,42 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
           left: 0,
           width: `${EXPANDED_WIDTH}px`,
           height: "100vh",
-          backgroundColor: "#0f172a",
+          background:
+            "linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.95) 55%, rgba(17, 24, 39, 0.98) 100%)",
           color: "white",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "2px 0 10px rgba(0,0,0,0.14)",
+          boxShadow: "18px 0 40px rgba(15, 23, 42, 0.28)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
           transform: isExpanded ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
           zIndex: 1000,
           overflow: "hidden",
           willChange: "transform",
+          borderRight: "1px solid rgba(148, 163, 184, 0.16)",
         }}
       >
         <div
           style={{
             minHeight: "78px",
             padding: "10px 15px 10px 60px",
-            borderBottom: "1px solid #1e293b",
+            borderBottom: "1px solid rgba(148, 163, 184, 0.18)",
             display: "flex",
             alignItems: "center",
             gap: "14px",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.06), transparent)",
           }}
         >
           <div
             style={{
-              backgroundColor: "rgba(255, 255, 255, 0.92)",
-              padding: "5px",
+              background: "rgba(255, 255, 255, 0.95)",
+              padding: "6px",
               borderRadius: "18px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+              boxShadow: "0 10px 24px rgba(15, 23, 42, 0.18)",
               flexShrink: 0,
             }}
           >
@@ -158,7 +165,7 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
                 margin: 0,
                 fontSize: "1.08rem",
                 fontWeight: 700,
-                letterSpacing: "0.4px",
+                letterSpacing: "0.2px",
                 lineHeight: 1.05,
                 color: "#ffffff",
                 whiteSpace: "normal",
@@ -173,10 +180,11 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
         <nav
           style={{
             flex: 1,
-            padding: "20px 0",
+            padding: "20px 0 18px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
+            overflowY: "auto",
           }}
         >
           {navItems.map((item) => {
@@ -190,31 +198,31 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
                 style={{
                   ...sharedItemStyle,
                   padding: "12px 24px",
-                  color: isActive ? "#ffffff" : "#94a3b8",
-                  backgroundColor: isActive
-                    ? item.path === "/"
-                      ? "#24324a"
-                      : "#1e293b"
+                  color: isActive ? "#ffffff" : "#cbd5e1",
+                  background: isActive
+                    ? "linear-gradient(135deg, rgba(29, 78, 216, 0.32), rgba(15, 23, 42, 0.86))"
                     : "transparent",
                   borderLeft: isActive
-                    ? "4px solid #3b82f6"
+                    ? "4px solid #60a5fa"
                     : "4px solid transparent",
                   fontWeight: isActive ? 600 : 400,
                   boxShadow:
-                    isActive && item.path === "/"
-                      ? "inset 0 0 0 1px rgba(59, 130, 246, 0.18)"
+                    isActive
+                      ? "0 10px 24px rgba(15, 23, 42, 0.18)"
                       : "none",
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive) {
-                    e.currentTarget.style.backgroundColor = "#1e293b";
+                    e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.06)";
                     e.currentTarget.style.color = "#ffffff";
+                    e.currentTarget.style.transform = "translateX(3px)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) {
                     e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = "#94a3b8";
+                    e.currentTarget.style.color = "#cbd5e1";
+                    e.currentTarget.style.transform = "translateX(0)";
                   }
                 }}
               >
@@ -228,10 +236,11 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
         <div
           style={{
             padding: "24px",
-            borderTop: "1px solid #1e293b",
+            borderTop: "1px solid rgba(148, 163, 184, 0.18)",
             fontSize: "0.8rem",
-            color: "#64748b",
+            color: "#94a3b8",
             textAlign: "center",
+            background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.03))",
           }}
         >
           {t("footerCopyright")}

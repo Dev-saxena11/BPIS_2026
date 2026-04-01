@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useLanguage } from "../contexts/LanguageContext";
 
 function DistrictSearch({ districts, onSelect, placeholder }) {
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -33,15 +35,16 @@ function DistrictSearch({ districts, onSelect, placeholder }) {
       style={{
         position: "relative",
         display: "inline-block",
-        top: "10px",
-        margin: "5px",
-        left: "0px",
+        margin: "0",
         zIndex: 1000,
-        background: "white",
-        padding: "8px",
-        borderRadius: "10px",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        background: "rgba(255,255,255,0.92)",
+        padding: "10px",
+        borderRadius: "16px",
+        boxShadow: "0 16px 32px rgba(15, 23, 42, 0.12)",
         minWidth: "320px",
+        border: "1px solid rgba(226,232,240,0.9)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
       }}
     >
       <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -60,29 +63,32 @@ function DistrictSearch({ districts, onSelect, placeholder }) {
             }
           }}
           style={{
-            padding: "10px 12px",
+            padding: "11px 13px",
             width: "100%",
             border: "1px solid #cbd5e1",
-            borderRadius: "8px",
+            borderRadius: "12px",
             outline: "none",
             fontSize: "0.98rem",
             boxSizing: "border-box",
+            background: "#f8fafc",
           }}
         />
         <button
           type="button"
           onClick={() => setIsOpen((current) => !current)}
           style={{
-            padding: "10px 12px",
-            border: "1px solid #cbd5e1",
-            borderRadius: "8px",
-            background: "#0f172a",
+            padding: "10px 14px",
+            border: "1px solid rgba(15,23,42,0.08)",
+            borderRadius: "12px",
+            background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
             color: "white",
             cursor: "pointer",
             whiteSpace: "nowrap",
+            boxShadow: "0 10px 20px rgba(15, 23, 42, 0.14)",
+            fontWeight: 700,
           }}
         >
-          {isOpen ? "Hide" : "Districts"}
+          {isOpen ? t("hide") : t("districts")}
         </button>
       </div>
 
@@ -91,11 +97,11 @@ function DistrictSearch({ districts, onSelect, placeholder }) {
           style={{
             marginTop: "8px",
             border: "1px solid #e2e8f0",
-            borderRadius: "10px",
+            borderRadius: "14px",
             maxHeight: "280px",
             overflowY: "auto",
             background: "white",
-            boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)",
+            boxShadow: "0 18px 36px rgba(15, 23, 42, 0.12)",
           }}
         >
           {filteredDistricts.length > 0 ? (

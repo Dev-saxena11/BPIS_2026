@@ -7,11 +7,17 @@ const Overview = () => {
   const { t } = useLanguage();
 
   return (
-    <div style={{ padding: '30px', maxWidth: '1400px', margin: '0 auto' }}>
-      <h1 className="gov-heading" style={{ fontSize: '2rem', marginBottom: '30px' }}>{t("pageOverview")}</h1>
-      
-      <div className="gov-card">
-        <h2 className="gov-heading">{t("nationalDistrictView")}</h2>
+    <div style={{ padding: '28px', maxWidth: '1440px', margin: '0 auto' }}>
+      <div className="gov-card" style={{ padding: '28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'end', flexWrap: 'wrap' }}>
+          <div>
+            <span className="section-label">{t("nationalDistrictView")}</span>
+            <h2 className="gov-heading" style={{ marginTop: '12px', marginBottom: '6px' }}>{t("districtMapLivePriorityTitle")}</h2>
+            <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+              {t("districtMapLivePrioritySubtitle")}
+            </p>
+          </div>
+        </div>
         <MapView />
       </div>
 
