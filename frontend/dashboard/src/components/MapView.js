@@ -190,7 +190,11 @@ function MapView() {
         <button
           onClick={() => setShowHighPriority(!showHighPriority)}
           style={{
-            padding: "11px 16px",
+            minWidth: "188px",
+            height: "48px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             background: showHighPriority
               ? "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)"
               : "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
@@ -200,10 +204,15 @@ function MapView() {
             cursor: "pointer",
             boxShadow: "0 12px 24px rgba(15, 23, 42, 0.16)",
             fontWeight: 700,
+            fontSize: "0.95rem",
+            lineHeight: 1.1,
             letterSpacing: "0.01em",
+            whiteSpace: "nowrap",
           }}
+          aria-label={showHighPriority ? t("showAllDistricts") : t("showCriticalDistricts")}
+          title={showHighPriority ? t("showAllDistricts") : t("showCriticalDistricts")}
         >
-          {showHighPriority ? t('showAllDistricts') : t('showCriticalDistricts')}
+          {showHighPriority ? t("showAllDistricts") : t("showCriticalDistricts")}
         </button>
       </div>
 
@@ -235,23 +244,6 @@ function MapView() {
           )}
         </MapContainer>
 
-        <div style={{
-          position: "absolute",
-          top: "14px",
-          right: "14px",
-          padding: "10px 12px",
-          borderRadius: "999px",
-          background: "rgba(255,255,255,0.9)",
-          border: "1px solid rgba(226,232,240,0.95)",
-          boxShadow: "0 10px 22px rgba(15, 23, 42, 0.10)",
-          fontSize: "0.85rem",
-          color: "#334155",
-          zIndex: 600,
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}>
-          {showHighPriority ? t('showCriticalDistricts') : t('showAllDistricts')}
-        </div>
       </div>
 
       <Legend />
@@ -260,3 +252,4 @@ function MapView() {
 }
 
 export default MapView;
+

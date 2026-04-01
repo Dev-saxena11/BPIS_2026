@@ -397,21 +397,7 @@ const ChatBot = () => {
                         </button>
                     </div>
                     <div className="chatbot-footer-meta">
-                        <span className={`chatbot-live-status ${isListening ? 'listening' : ''}`}>
-                            {isListening
-                                ? (voiceLanguage === 'hi' ? 'सुन रहा है...' : 'Listening...')
-                                : (language === 'hi'
-                                    ? 'Hindi और English voice input supported'
-                                    : 'Hindi and English voice input supported')}
-                        </span>
                         {speechError && <span className="chatbot-live-error">{speechError}</span>}
-                        {ttsEnabled && (
-                            <span className="chatbot-live-status">
-                                {voiceLanguage === 'hi'
-                                    ? 'AI जवाब आवाज़ में पढ़े जाएंगे'
-                                    : 'AI replies will be spoken aloud'}
-                            </span>
-                        )}
                     </div>
                 </div>
             ) : (
