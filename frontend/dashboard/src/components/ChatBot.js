@@ -5,6 +5,70 @@ import { useLanguage } from '../contexts/LanguageContext';
 import './ChatBot.css';
 
 const getSpeechLang = (lang) => (lang === 'hi' ? 'hi-IN' : 'en-IN');
+const FEMALE_VOICE_HINTS = ['female', 'woman', 'girl', 'samantha', 'zira', 'tessa', 'serena', 'heather', 'karen'];
+const GOOGLE_VOICE_HINTS = ['google'];
+
+const normalizeVoiceText = (value) => String(value || '').toLowerCase().trim();
+
+const getVoiceDisplayName = (voice) => {
+    const name = voice?.name || 'Voice';
+    const lang = voice?.lang ? ` (${voice.lang})` : '';
+    const isDefault = voice?.default ? ' - default' : '';
+    return `${name}${lang}${isDefault}`;
+};
+
+const sortVoicesForLanguage = (voices, voiceLanguage) => {
+    const targetPrefix = voiceLanguage === 'hi' ? 'hi' : 'en';
+    const targetLang = getSpeechLang(voiceLanguage).toLowerCase();
+
+    return [...voices].sort((a, b) => {
+        const aName = normalizeVoiceText(a.name);
+        const bName = normalizeVoiceText(b.name);
+        const aLang = normalizeVoiceText(a.lang);
+        const bLang = normalizeVoiceText(b.lang);
+
+        const scoreVoice = (voiceName, voiceLang, isDefault) => {
+            let score = 0;
+            if (voiceLang === targetLang) score += 100;
+            else if (voiceLang.startsWith(targetPrefix)) score += 85;
+            if (GOOGLE_VOICE_HINTS.some((hint) => voiceName.includes(hint))) score += 30;
+            if (FEMALE_VOICE_HINTS.some((hint) => voiceName.includes(hint))) score += 25;
+            if (isDefault) score += 10;
+            return score;
+        };
+
+        const scoreA = scoreVoice(aName, aLang, Boolean(a.default));
+        const scoreB = scoreVoice(bName, bLang, Boolean(b.default));
+
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return getVoiceDisplayName(a).localeCompare(getVoiceDisplayName(b));
+    });
+};
+
+const pickPreferredVoice = (voices, voiceLanguage) => {
+    const targetPrefix = voiceLanguage === 'hi' ? 'hi' : 'en';
+    const targetLang = getSpeechLang(voiceLanguage).toLowerCase();
+
+    return [...voices]
+        .map((voice) => {
+            const name = normalizeVoiceText(voice.name);
+            const lang = normalizeVoiceText(voice.lang);
+            const isTargetLanguage = lang.startsWith(targetPrefix);
+            const isExactLanguage = lang === targetLang;
+            const hasGoogle = GOOGLE_VOICE_HINTS.some((hint) => name.includes(hint));
+            const hasFemaleSignal = FEMALE_VOICE_HINTS.some((hint) => name.includes(hint));
+
+            let score = 0;
+            if (isExactLanguage) score += 100;
+            else if (isTargetLanguage) score += 85;
+            if (hasGoogle) score += 30;
+            if (hasFemaleSignal) score += 25;
+            if (voice.default) score += 10;
+
+            return { voice, score };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.voice || null;
+};
 
 const ChatBot = () => {
     const { language } = useLanguage();
@@ -24,6 +88,8 @@ const ChatBot = () => {
     const [voiceLanguage, setVoiceLanguage] = useState(language);
     const [ttsEnabled, setTtsEnabled] = useState(false);
     const [isTtsSupported, setIsTtsSupported] = useState(true);
+    const [availableVoices, setAvailableVoices] = useState([]);
+    const [selectedVoiceURI, setSelectedVoiceURI] = useState('');
 
     const messagesEndRef = useRef(null);
     const recognitionRef = useRef(null);
@@ -41,6 +107,42 @@ const ChatBot = () => {
     useEffect(() => {
         setVoiceLanguage(language);
     }, [language]);
+
+    useEffect(() => {
+        if (!selectedVoiceURI) return;
+
+        const selectedVoiceStillAvailable = availableVoices.some((voice) => {
+            return voice.voiceURI === selectedVoiceURI;
+        });
+
+        if (!selectedVoiceStillAvailable) {
+            setSelectedVoiceURI('');
+        }
+    }, [availableVoices, selectedVoiceURI]);
+
+    useEffect(() => {
+        const speechSynthesis = window.speechSynthesis;
+        if (!speechSynthesis) return;
+
+        const loadVoices = () => {
+            const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+            setAvailableVoices(voices);
+        };
+
+        loadVoices();
+
+        if (speechSynthesis.addEventListener) {
+            speechSynthesis.addEventListener('voiceschanged', loadVoices);
+            return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+        }
+
+        speechSynthesis.onvoiceschanged = loadVoices;
+        return () => {
+            if (speechSynthesis.onvoiceschanged === loadVoices) {
+                speechSynthesis.onvoiceschanged = null;
+            }
+        };
+    }, []);
 
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -141,12 +243,12 @@ const ChatBot = () => {
         utterance.pitch = 1;
         utterance.volume = 1;
 
-        const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+        const voices = availableVoices.length
+            ? availableVoices
+            : (window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : []);
         const preferredVoice =
-            voices.find((voice) => voice.lang?.toLowerCase().startsWith(voiceLanguage === 'hi' ? 'hi' : 'en')) ||
-            voices.find((voice) => voice.lang?.toLowerCase() === utterance.lang.toLowerCase()) ||
-            voices.find((voice) => voice.lang?.toLowerCase().startsWith('en')) ||
-            voices.find((voice) => voice.lang?.toLowerCase().startsWith('hi'));
+            (selectedVoiceURI && voices.find((voice) => voice.voiceURI === selectedVoiceURI)) ||
+            pickPreferredVoice(voices, voiceLanguage);
 
         if (preferredVoice) {
             utterance.voice = preferredVoice;
@@ -161,7 +263,7 @@ const ChatBot = () => {
                 window.speechSynthesis.cancel();
             }
         };
-    }, [messages, ttsEnabled, isTyping, voiceLanguage]);
+    }, [messages, ttsEnabled, isTyping, voiceLanguage, availableVoices, selectedVoiceURI]);
 
     const buildHistoryPayload = (historyMessages) => {
         return historyMessages.slice(-4).map((message) => ({
@@ -272,6 +374,8 @@ const ChatBot = () => {
         ? (voiceLanguage === 'hi' ? 'आवाज़ बंद करें' : 'Turn voice off')
         : (voiceLanguage === 'hi' ? 'आवाज़ में पढ़ें' : 'Read replies aloud');
 
+    const voicesForPicker = sortVoicesForLanguage(availableVoices, voiceLanguage);
+
     return (
         <div className="chatbot-container">
             {isOpen ? (
@@ -304,10 +408,30 @@ const ChatBot = () => {
                                     onClick={() => setVoiceLanguage('hi')}
                                     aria-pressed={voiceLanguage === 'hi'}
                                     title={language === 'hi' ? 'वॉइस इनपुट Hindi में' : 'Voice input in Hindi'}
-                                >
+                                    >
                                     HI
                                 </button>
                             </div>
+
+                            <label className="chatbot-voice-picker" aria-label="Choose chatbot voice">
+                                <span className="chatbot-voice-picker-label">Voice</span>
+                                <select
+                                    className="chatbot-voice-select"
+                                    value={selectedVoiceURI}
+                                    onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                                    disabled={!isTtsSupported || voicesForPicker.length === 0}
+                                    title={voiceLanguage === 'hi' ? 'अपनी पसंद की आवाज़ चुनें' : 'Choose your preferred voice'}
+                                >
+                                    <option value="">
+                                        {voiceLanguage === 'hi' ? 'Auto (recommended)' : 'Auto (recommended)'}
+                                    </option>
+                                    {voicesForPicker.map((voice) => (
+                                        <option key={voice.voiceURI || `${voice.name}-${voice.lang}`} value={voice.voiceURI}>
+                                            {getVoiceDisplayName(voice)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
 
                             <button
                                 type="button"
