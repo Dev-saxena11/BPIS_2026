@@ -248,10 +248,61 @@ class AIPolicyAdvisorService:
         focus = "health" if float(district_row.get("population", 0) or 0) > 1_000_000 else "education"
         payload = self.build_district_payload(district_row, focus)
 
+        # 1. District Snapshot (convert to native python types to prevent JSON serialize errors)
+        import pandas as pd
+        district_snapshot = {}
+        for k, v in district_row.to_dict().items():
+            if pd.isna(v):
+                district_snapshot[k] = None
+            elif hasattr(v, "item"):
+                district_snapshot[k] = v.item()
+            else:
+                district_snapshot[k] = v
+
+        # 2. Issue Details matching frontend {issue, reason} expectations
+        issue_details = []
+        literacy = float(district_row.get("literacy_rate", district_row.get("literacy", 0)) or 0)
+        population = float(district_row.get("population", 0) or 0)
+
+        if literacy < 40:
+            issue_details.append({"issue": "CRITICAL_LITERACY_GAP", "reason": f"Literacy rate is severely low at {literacy}%, triggering an immediate intervention alert."})
+        elif 40 <= literacy <= 55:
+            issue_details.append({"issue": "STAGNANT_EDUCATION", "reason": f"Literacy rate is stagnant at {literacy}%, indicating a need for infrastructure improvements."})
+
+        if population > 4_000_000:
+            issue_details.append({"issue": "EXTREME_PRESSURE", "reason": f"High population of {population:,.0f} creates saturation risks for public services."})
+        elif 2_500_000 <= population <= 4_000_000:
+            issue_details.append({"issue": "HIGH_DENSITY_STRAIN", "reason": f"Substantial population of {population:,.0f} places strain on urban resources."})
+
+        if literacy > 60 and population > 2_000_000:
+            issue_details.append({"issue": "URBAN_MANAGEMENT_PRESSURE", "reason": "Combination of growing literacy and high population demands better resource scaling."})
+
+        if literacy > 62:
+            issue_details.append({"issue": "QUALITY_ENHANCEMENT", "reason": "Basic literacy achieved; focus should shift to educational quality and job skills."})
+
+        if population < 2_000_000:
+            issue_details.append({"issue": "SERVICE_SCALING", "reason": "Manageable population allows for focused resource optimization."})
+
+        if not issue_details:
+             issue_details.append({"issue": "ROUTINE_MONITORING", "reason": "Indicators are stable. Continue routine monitoring."})
+
+        # 3. Scheme Explanations
+        scheme_explanations = {}
+        for scheme in payload["recommended_schemes"]:
+            if any(k in scheme for k in ["Mission", "Abhiyan", "Padhao", "Bharat"]):
+                scheme_explanations[scheme] = [f"{scheme} is well-suited to address the educational and socio-economic gaps highlighted by the current indicators in {payload['district']}."]
+            elif "Yojana" in scheme:
+                scheme_explanations[scheme] = [f"{scheme} provides structural and welfare support, directly mitigating the resource pressure and demographic strain measured in this district."]
+            else:
+                scheme_explanations[scheme] = [f"Deploying {scheme} will help stabilize the priority metrics flagged in the district snapshot."]
+
         return {
             "district": payload["district"],
             "issues": payload["issues"],
+            "issue_details": issue_details,
             "recommended_schemes": payload["recommended_schemes"],
+            "scheme_explanations": scheme_explanations,
+            "district_snapshot": district_snapshot,
             "reason": payload["reason"],
         }
 
