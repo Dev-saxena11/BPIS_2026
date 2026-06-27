@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import ChatBot from "./components/ChatBot";
+import ProjectFooter from "./components/ProjectFooter";
 import { LanguageProvider } from './contexts/LanguageContext';
 
 import Overview from "./pages/Overview";
@@ -18,7 +19,9 @@ import "./Layout.css";
 
 function AuthenticatedShell({ isAuthenticated, sidebarWidth, isSidebarExpanded, setIsSidebarExpanded, onWidthChange }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const previousAuth = useRef(isAuthenticated);
+  const scrollContainerRef = useRef(null);
 
   useEffect(() => {
     if (!previousAuth.current && isAuthenticated) {
@@ -26,6 +29,13 @@ function AuthenticatedShell({ isAuthenticated, sidebarWidth, isSidebarExpanded, 
     }
     previousAuth.current = isAuthenticated;
   }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]);
 
   return (
     <div className="dashboard-shell">
@@ -43,18 +53,24 @@ function AuthenticatedShell({ isAuthenticated, sidebarWidth, isSidebarExpanded, 
       >
         <Navbar isSidebarExpanded={isSidebarExpanded} />
 
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/overview" element={<Overview />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/policy-advisor" element={<PolicyAI />} />
-            <Route path="/district-comparison" element={<DistrictComparison />} />
-            <Route path="/district-alerts" element={<DistrictAlerts />} />
-            <Route path="/district-explainability" element={<DistrictExplainability />} />
-            <Route path="/district-notes" element={<DistrictNotes />} />
-            <Route path="/scheme-repository" element={<SchemeRepository />} />
-          </Routes>
+        <div
+          ref={scrollContainerRef}
+          style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+        >
+          <div style={{ flex: '1 0 auto' }}>
+            <Routes>
+              <Route path="/" element={<Overview />} />
+              <Route path="/overview" element={<Overview />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/policy-advisor" element={<PolicyAI />} />
+              <Route path="/district-comparison" element={<DistrictComparison />} />
+              <Route path="/district-alerts" element={<DistrictAlerts />} />
+              <Route path="/district-explainability" element={<DistrictExplainability />} />
+              <Route path="/district-notes" element={<DistrictNotes />} />
+              <Route path="/scheme-repository" element={<SchemeRepository />} />
+            </Routes>
+          </div>
+          <ProjectFooter />
         </div>
       </div>
 

@@ -233,18 +233,6 @@ const Sidebar = ({ isExpanded, setIsExpanded, onWidthChange }) => {
           })}
         </nav>
 
-        <div
-          style={{
-            padding: "24px",
-            borderTop: "1px solid rgba(148, 163, 184, 0.18)",
-            fontSize: "0.8rem",
-            color: "#94a3b8",
-            textAlign: "center",
-            background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.03))",
-          }}
-        >
-          {t("footerCopyright")}
-        </div>
       </aside>
     </>
   );
